@@ -38,6 +38,27 @@ The end-to-end scenarios pass on testnet with a 5-minute timeout, 5.00 USDC depo
 
 Still to do by hand: a plain browser wallet (MetaMask or Rabby) going through the report flow, and a smart-wallet verdict signer.
 
+## Deploying (hosted testnet)
+
+The app runs on any Node host; these steps use Vercel and a hosted Postgres.
+
+1. **Database.** Create a Postgres database (Neon from Vercel's Storage tab, or Supabase) and copy its *pooled* connection string. The table is created on first use.
+2. **Vercel project.** Import this repo and set **Root Directory** to `app`. Keep "Include files outside the root directory" on, because the app reads `config/*.json`.
+3. **Environment variables** (Production and Preview):
+
+   | Name | Value |
+   |---|---|
+   | `NETWORK` | `testnet` |
+   | `DATABASE_URL` | the pooled Postgres URL |
+   | `RELAYER_PRIVATE_KEY` | a wallet holding only gas money (1–2 USDC) |
+   | `CRON_SECRET` | any long random string |
+   | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | optional, from cloud.reown.com, enables mobile wallets |
+
+4. **Hourly refunds.** In GitHub, add repo secrets `APP_URL` (e.g. `https://reportbond.vercel.app`) and `CRON_SECRET` (same value). The *Refund keeper* workflow then calls `/api/cron/keeper` every hour.
+5. **Check.** `GET /api/status` should report `"storage": "postgres"` and the latest block.
+
+Without `DATABASE_URL` the app falls back to JSON files in `app/.data`, which is fine locally but doesn't persist on serverless hosts. `pnpm test:db` checks either backend.
+
 ## Setup
 
 Requires Foundry, Node 22 and pnpm. Copy `.env.example` to `.env`.

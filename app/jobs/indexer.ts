@@ -15,7 +15,7 @@ async function tick() {
 async function main() {
   if (!isDeployed) throw new Error(`No contract address in config for ${config.network}`);
   await tick();
-  if (process.argv.includes("--once")) return;
+  if (process.argv.includes("--once")) process.exit(0);
   setInterval(() => tick().catch((e) => console.error("[indexer]", e)), INTERVAL_MS);
 }
 

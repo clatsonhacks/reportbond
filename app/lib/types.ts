@@ -50,4 +50,5 @@ export type StatusView = {
   deployed: boolean;
   contract: string;
   lastBlock: number;
+  storage: "postgres" | "files";
 };

@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const creator = q.get("creator")?.toLowerCase();
   const open = q.get("open") === "1";
   const d = await ensureFresh();
-  const priv = loadPrivate();
+  const priv = await loadPrivate();
   const reports = Object.values(d.reports)
     .filter((r) => !pool || String(r.poolId) === pool)
     .filter((r) => !reporter || r.reporter === reporter)

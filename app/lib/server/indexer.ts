@@ -35,21 +35,21 @@ export async function syncFresh(): Promise<ChainData> {
 
 /** For API routes: sync at most every second, so pages are fresh without a separate job locally. */
 export async function ensureFresh(): Promise<ChainData> {
-  if (!isDeployed) return loadChain();
+  if (!isDeployed) return await loadChain();
   if (state.running) return state.running;
-  if (Date.now() - state.lastRun < MIN_INTERVAL_MS) return loadChain();
+  if (Date.now() - state.lastRun < MIN_INTERVAL_MS) return await loadChain();
   try {
     return await syncOnce();
   } catch (e) {
     console.error("[indexer] sync failed, serving cached data:", e);
-    return loadChain();
+    return await loadChain();
   }
 }
 
 type DecodedLog = Log<bigint, number, false> & { eventName: EventKind; args: Record<string, unknown> };
 
 async function doSync(): Promise<ChainData> {
-  let d = structuredClone(loadChain());
+  let d = await loadChain();
   if (!isDeployed) return d;
 
   const latest = await publicClient.getBlockNumber();
@@ -57,7 +57,7 @@ async function doSync(): Promise<ChainData> {
     // The chain is behind our cache (a restarted local chain): rebuild from the deployment block.
     console.warn(`[indexer] cache is at block ${d.lastBlock} but the chain is at ${latest}; re-indexing`);
     d = emptyChain();
-    saveChain(d);
+    await saveChain(d, true);
   }
   let from = BigInt(d.lastBlock + 1);
   if (from > latest) return d;
@@ -100,7 +100,7 @@ async function doSync(): Promise<ChainData> {
     row.openReports = Number(p[8]);
   }
 
-  saveChain(d);
+  await saveChain(d);
   return d;
 }
 

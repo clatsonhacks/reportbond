@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (!pool) return bad("Pool not found", 404);
   const repo = `${parsed.owner}/${parsed.repo}`;
   if (repoIdOf(repo) !== pool.repoId) {
-    const expected = loadPrivate().repoNames[pool.id];
+    const expected = (await loadPrivate()).repoNames[pool.id];
     return bad(`This advisory is on ${repo}, but this pool is for ${expected ?? "a different repo"}.`);
   }
   const advisoryHash = advisoryHashOf(parsed.url);

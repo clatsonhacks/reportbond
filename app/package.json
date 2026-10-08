@@ -10,12 +10,14 @@
     "sync-abi": "node scripts/sync-abi.mjs",
     "indexer": "tsx --conditions=react-server jobs/indexer.ts",
     "keeper": "tsx --conditions=react-server jobs/keeper.ts",
-    "e2e": "tsx --conditions=react-server scripts/e2e.ts"
+    "e2e": "tsx --conditions=react-server scripts/e2e.ts",
+    "test:db": "tsx --conditions=react-server scripts/test-db.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",
     "@tanstack/react-query": "^5.104.1",
     "next": "15.5.27",
+    "postgres": "3.4.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "server-only": "^0.0.1",
@@ -23,6 +25,8 @@
     "wagmi": "^2.19.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-socket": "0.2.11",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

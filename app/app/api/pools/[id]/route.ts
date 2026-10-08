@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!d.pools[id]) d = await syncFresh(); // just created, maybe not indexed yet
   const p = d.pools[id];
   if (!p) return bad("Pool not found", 404);
-  const priv = loadPrivate();
+  const priv = await loadPrivate();
   const recent = Object.values(d.reports)
     .filter((r) => r.poolId === p.id && r.status >= 3)
     .sort((a, b) => b.id - a.id)

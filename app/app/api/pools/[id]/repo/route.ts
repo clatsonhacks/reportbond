@@ -18,7 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!d.pools[id]) return bad("Pool not found", 404);
   if (repoIdOf(name) !== d.pools[id].repoId) return bad("That repo doesn't match this pool");
 
-  updatePrivate((priv) => {
+  await updatePrivate((priv) => {
     priv.repoNames[id] = name;
   });
   return json({ ok: true, repo: name });

@@ -21,7 +21,7 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!r) return bad("Report not found", 404);
   if (advisoryHashOf(parsed.url) !== r.advisoryHash) return bad("This link doesn't match the report");
 
-  updatePrivate((priv) => {
+  await updatePrivate((priv) => {
     priv.advisoryLinks[id] = parsed.url;
   });
   return json({ ok: true });
@@ -38,7 +38,7 @@ export async function GET(req: Request, { params }: Ctx) {
   if (who !== r.reporter && who !== creator) {
     return bad("Only the reporter and the pool creator can see this link", 403);
   }
-  const url = loadPrivate().advisoryLinks[id];
+  const url = (await loadPrivate()).advisoryLinks[id];
   if (!url) return bad("No link stored for this report", 404);
   return json({ url });
 }

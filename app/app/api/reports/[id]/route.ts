@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!d.reports[id]) d = await syncFresh(); // just submitted, maybe not indexed yet
   const r = d.reports[id];
   if (!r) return bad("Report not found", 404);
-  const priv = loadPrivate();
+  const priv = await loadPrivate();
   const p = d.pools[r.poolId];
   return json({ report: reportView(priv, r), pool: p ? poolView(d, priv, p) : null });
 }

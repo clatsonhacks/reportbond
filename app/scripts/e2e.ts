@@ -1,6 +1,7 @@
 // End-to-end scenarios (docs/TESTING.md) through the app's API, relayer, sign-in and keeper.
 //   Local (Layer 2):   anvil running, contract deployed, `NETWORK=local pnpm dev`;   then `NETWORK=local pnpm e2e`
 //   Testnet (Layer 3): TEST_* wallets funded in .env, `pnpm dev` on testnet;          then `pnpm e2e`
+// Mainnet (Layer 4): tiny amounts, and only with E2E_MAINNET_CONFIRM=yes after `pnpm preflight`.
 // On testnet the no-response report is filed first, so its 5-minute timeout runs while the others are tested.
 // Scenario D never touches our API: a stranger refunds straight on the chain, as if our server were down.
 import "../jobs/env";
@@ -17,7 +18,20 @@ import { chain, config, txUrl } from "../lib/network";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 const local = config.network === "local";
-const TIMEOUT = 300n; // 5 minutes, as in docs/TESTING.md
+// Amounts per docs/TESTING.md: testnet and local use 5.00 deposits and a 10.00 pool with a 5-minute
+// timeout; the mainnet smoke test uses tiny real amounts and a 10-minute timeout.
+const mainnet = config.network === "mainnet";
+if (mainnet && process.env.E2E_MAINNET_CONFIRM !== "yes") {
+  throw new Error("This moves real USDC. Run `pnpm preflight` first, then set E2E_MAINNET_CONFIRM=yes.");
+}
+const AMT = mainnet
+  ? { deposit: "0.5", fund: "2", bounty: "0.2", cap: "0.3", timeout: 600n }
+  : { deposit: "5", fund: "10", bounty: "2", cap: "3", timeout: 300n };
+const DEPOSIT = parseUsdc(AMT.deposit);
+const FUND = parseUsdc(AMT.fund);
+const BOUNTY = parseUsdc(AMT.bounty);
+const TIMEOUT = AMT.timeout;
+const usd = (v: bigint) => formatUsdc(v, false);
 
 type Account = ReturnType<typeof privateKeyToAccount> | ReturnType<typeof mnemonicToAccount>;
 function accounts(): Account[] {
@@ -25,9 +39,11 @@ function accounts(): Account[] {
     const m = "test test test test test test test test test test test junk";
     return [0, 1, 2].map((i) => mnemonicToAccount(m, { addressIndex: i }));
   }
+  // Mainnet uses its own wallets: testnet keys end up in logs and screenshots (docs/NETWORKS.md).
+  const prefix = config.network === "mainnet" ? "MAINNET" : "TEST";
   return ["MAINTAINER", "REPORTER", "STRANGER"].map((r) => {
-    const key = process.env[`TEST_${r}_PRIVATE_KEY`] as Hex | undefined;
-    if (!key) throw new Error(`TEST_${r}_PRIVATE_KEY is not set in .env`);
+    const key = process.env[`${prefix}_${r}_PRIVATE_KEY`] as Hex | undefined;
+    if (!key) throw new Error(`${prefix}_${r}_PRIVATE_KEY is not set in .env`);
     return privateKeyToAccount(key);
   });
 }
@@ -97,7 +113,7 @@ async function relay(scenario: string, reportId: bigint, verdict: Verdict, bount
   return res;
 }
 
-const REPO = local ? `reportbond/demo-${Date.now()}` : "clatsonhacks/reportbond-demo-testnet";
+const REPO = local ? `reportbond/demo-${Date.now()}` : mainnet ? "clatsonhacks/reportbond-demo" : "clatsonhacks/reportbond-demo-testnet";
 const RUN = Date.now().toString(36);
 // GHSA IDs use a restricted alphabet; derive a unique one per report and run.
 const ALPHABET = "23456789cfghjmpqrvwx";
@@ -124,9 +140,9 @@ async function withdraw(scenario: string) {
 
 async function submit(scenario: string, n: number) {
   // A reporter with deposits out may need their credits back before paying the next one.
-  if ((await chainClient.getBalance({ address: reporter.address })) < parseUsdc("5.2")) withdrawn += await withdraw(scenario);
-  const receipt = await send(reporter, "submitReport", [poolId, advisoryHashOf(advisory(n))], parseUsdc("5"));
-  record(scenario, "deposit 5.00", receipt.transactionHash);
+  if ((await chainClient.getBalance({ address: reporter.address })) < DEPOSIT + parseUsdc("0.2")) withdrawn += await withdraw(scenario);
+  const receipt = await send(reporter, "submitReport", [poolId, advisoryHashOf(advisory(n))], DEPOSIT);
+  record(scenario, `deposit ${usd(DEPOSIT)}`, receipt.transactionHash);
   const [ev] = parseEventLogs({ abi: reportBond.abi, eventName: "ReportSubmitted", logs: receipt.logs });
   const saved = await call(`/api/reports/${ev.args.reportId}/advisory`, { json: { url: advisory(n) } });
   check(`advisory link stored for #${ev.args.reportId}`, saved.status === 200, saved.body);
@@ -157,13 +173,13 @@ async function main() {
   }
 
   console.log("Pool");
-  const created = await send(maintainer, "createPool", [repoIdOf(REPO), maintainer.address, parseUsdc("5"), TIMEOUT, parseUsdc("3")], parseUsdc("10"));
-  record("setup", "create pool, fund 10.00", created.transactionHash);
+  const created = await send(maintainer, "createPool", [repoIdOf(REPO), maintainer.address, DEPOSIT, TIMEOUT, parseUsdc(AMT.cap)], FUND);
+  record("setup", `create pool, fund ${usd(FUND)}`, created.transactionHash);
   poolId = parseEventLogs({ abi: reportBond.abi, eventName: "PoolCreated", logs: created.logs })[0].args.poolId;
   check("wrong repo name rejected", (await call(`/api/pools/${poolId}/repo`, { json: { repo: "evil/other" } })).status === 400);
   check("repo name accepted", (await call(`/api/pools/${poolId}/repo`, { json: { repo: REPO } })).status === 200);
   const pool = await call(`/api/pools/${poolId}`);
-  check("pool page data", pool.body.pool?.repoName === REPO && pool.body.pool?.available === parseUsdc("10").toString(), pool.body);
+  check("pool page data", pool.body.pool?.repoName === REPO && pool.body.pool?.available === FUND.toString(), pool.body);
 
   console.log("D. No response (filed first, refunded at the end)");
   const d = await submit("D", 4);
@@ -187,8 +203,8 @@ async function main() {
   const asReporter = await call(`/api/reports/${a}/advisory`, { headers: { authorization: await token(reporter) } });
   check("advisory link: reporter sees it", asReporter.body.url === advisory(0).toLowerCase(), asReporter.body);
   check("advisory link: pool creator sees it", (await call(`/api/reports/${a}/advisory`, { headers: { authorization: await token(maintainer) } })).status === 200);
-  const va = await relay("A", a, Verdict.Valid, parseUsdc("2"));
-  check("relayed Valid verdict with 2.00 bounty", Boolean(va.body.hash), va.body);
+  const va = await relay("A", a, Verdict.Valid, BOUNTY);
+  check(`relayed Valid verdict with ${usd(BOUNTY)} bounty`, Boolean(va.body.hash), va.body);
   check("status Valid", (await call(`/api/reports/${a}`)).body.report?.status === 3);
 
   console.log("B. Mistake");
@@ -197,7 +213,11 @@ async function main() {
   console.log("C. Slop");
   check("relayed Slop verdict", Boolean((await relay("C", await submit("C", 2), Verdict.Slop, 0n)).body.hash));
   const slopWithdraw = await call(`/api/pools/${poolId}`);
-  check("slashed 5.00 is not withdrawable (only funded money is)", slopWithdraw.body.pool?.slashedBalance === parseUsdc("5").toString(), slopWithdraw.body.pool);
+  check(
+    `slashed ${usd(DEPOSIT)} is not withdrawable (only funded money is)`,
+    slopWithdraw.body.pool?.slashedBalance === DEPOSIT.toString(),
+    slopWithdraw.body.pool,
+  );
 
   console.log("E. Tampered and replayed");
   const e = await submit("E", 3);
@@ -237,13 +257,13 @@ async function main() {
   const gas = w.gasUsed * w.effectiveGasPrice;
   check("final withdrawal paid exactly what was owed", after - before + gas === owed, formatUsdc(after - before));
   check(
-    "reporter got back 7.00 (A) + 5.00 (B) + 5.00 (D) = 17.00 in total",
-    withdrawn + owed === parseUsdc("17"),
+    `reporter got back ${usd(DEPOSIT + BOUNTY)} (A) + ${usd(DEPOSIT)} (B) + ${usd(DEPOSIT)} (D) = ${usd(3n * DEPOSIT + BOUNTY)} in total`,
+    withdrawn + owed === 3n * DEPOSIT + BOUNTY,
     formatUsdc(withdrawn + owed),
   );
   const final = await call(`/api/pools/${poolId}`);
-  check("pool funded 8.00 (10 - 2 bounty)", final.body.pool?.fundedBalance === parseUsdc("8").toString(), final.body.pool);
-  check("pool slashed 10.00 (C + E)", final.body.pool?.slashedBalance === parseUsdc("10").toString(), final.body.pool);
+  check(`pool funded ${usd(FUND - BOUNTY)} (${usd(FUND)} - ${usd(BOUNTY)} bounty)`, final.body.pool?.fundedBalance === (FUND - BOUNTY).toString(), final.body.pool);
+  check(`pool slashed ${usd(2n * DEPOSIT)} (C + E)`, final.body.pool?.slashedBalance === (2n * DEPOSIT).toString(), final.body.pool);
   check(
     "pool outcomes",
     JSON.stringify(final.body.pool?.outcomes) === JSON.stringify({ valid: 1, mistake: 1, slop: 2, refunded: 1 }),

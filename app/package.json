@@ -11,7 +11,8 @@
     "indexer": "tsx --conditions=react-server jobs/indexer.ts",
     "keeper": "tsx --conditions=react-server jobs/keeper.ts",
     "e2e": "tsx --conditions=react-server scripts/e2e.ts",
-    "test:db": "tsx --conditions=react-server scripts/test-db.ts"
+    "test:db": "tsx --conditions=react-server scripts/test-db.ts",
+    "preflight": "tsx --conditions=react-server scripts/preflight.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",

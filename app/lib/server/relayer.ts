@@ -9,7 +9,10 @@ import { reportBond } from "../contract";
 import { chain, config } from "../network";
 
 function relayer() {
-  const key = process.env.RELAYER_PRIVATE_KEY as Hex | undefined;
+  // A local .env holds testnet keys; mainnet runs from a dev machine use MAINNET_RELAYER_PRIVATE_KEY.
+  // A hosted deployment has one network per environment and just sets RELAYER_PRIVATE_KEY.
+  const key = ((config.network === "mainnet" && process.env.MAINNET_RELAYER_PRIVATE_KEY) ||
+    process.env.RELAYER_PRIVATE_KEY) as Hex | undefined;
   if (!key) throw new Error("RELAYER_PRIVATE_KEY is not set");
   const account = privateKeyToAccount(key);
   const wallet = createWalletClient({

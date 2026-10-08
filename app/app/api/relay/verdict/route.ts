@@ -1,0 +1,21 @@
+import { isHex } from "viem";
+import { explainError, revertName } from "@/lib/errors";
+import { relayVerdict } from "@/lib/server/relayer";
+import { json } from "@/lib/server/views";
+
+export async function POST(req: Request) {
+  const b = (await req.json().catch(() => ({}))) as Record<string, string | number>;
+  try {
+    if (!isHex(b.signature)) throw new Error("Missing signature");
+    const hash = await relayVerdict({
+      reportId: BigInt(b.reportId),
+      verdict: Number(b.verdict),
+      bounty: BigInt(b.bounty),
+      deadline: BigInt(b.deadline),
+      signature: b.signature,
+    });
+    return json({ hash });
+  } catch (e) {
+    return json({ error: explainError(e), code: revertName(e) }, 422);
+  }
+}

@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/* The glass vault (docs/DESIGN.md): calm, transparent, exact. Each colour means exactly one thing. */
+:root {
+  --ink: #16191d;
+  --ink-muted: #59616b;
+  --surface: #f7f7f5;
+  --card: #ffffff;
+  --line: #e2e4e1;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --returned: #15803d;
+  --returned-bg: #e8f5ec;
+  --waiting: #b45309;
+  --waiting-bg: #fdf3e2;
+  --slashed: #b91c1c;
+  --slashed-bg: #fbeaea;
+  --testnet: #6d28d9;
+  --testnet-bg: #f1eafd;
+  --focus: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #eceef0;
+    --ink-muted: #9aa3ad;
+    --surface: #121417;
+    --card: #1a1d21;
+    --line: #2b2f35;
+    --accent: #2dd4bf;
+    --accent-ink: #062b27;
+    --returned: #4ade80;
+    --returned-bg: #13261a;
+    --waiting: #fbbf24;
+    --waiting-bg: #2a2110;
+    --slashed: #f87171;
+    --slashed-bg: #2c1414;
+    --testnet: #c4b5fd;
+    --testnet-bg: #241a3a;
+    --focus: #93c5fd;
+  }
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-returned: var(--returned);
+  --color-returned-bg: var(--returned-bg);
+  --color-waiting: var(--waiting);
+  --color-waiting-bg: var(--waiting-bg);
+  --color-slashed: var(--slashed);
+  --color-slashed-bg: var(--slashed-bg);
+  --color-testnet: var(--testnet);
+  --color-testnet-bg: var(--testnet-bg);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+  --radius-card: 8px;
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Money, addresses, hashes and IDs line up. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .state-change {
+    transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease;
+  }
+}

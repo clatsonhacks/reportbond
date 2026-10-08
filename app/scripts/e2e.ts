@@ -108,8 +108,23 @@ const ghsa = (n: number) =>
 const advisory = (n: number) => `https://github.com/${REPO}/security/advisories/GHSA-${ghsa(n)}`;
 
 let poolId = 0n;
+/** Credits the reporter withdrew during this run (they withdraw mid-run when low on USDC). */
+let withdrawn = 0n;
+
+const credits = async () =>
+  (await chainClient.readContract({ ...reportBond, functionName: "credits", args: [reporter.address] })) as bigint;
+
+async function withdraw(scenario: string) {
+  const owed = await credits();
+  if (owed === 0n) return 0n;
+  const w = await send(reporter, "withdraw", []);
+  record(scenario, `reporter withdraws ${formatUsdc(owed)}`, w.transactionHash);
+  return owed;
+}
 
 async function submit(scenario: string, n: number) {
+  // A reporter with deposits out may need their credits back before paying the next one.
+  if ((await chainClient.getBalance({ address: reporter.address })) < parseUsdc("5.2")) withdrawn += await withdraw(scenario);
   const receipt = await send(reporter, "submitReport", [poolId, advisoryHashOf(advisory(n))], parseUsdc("5"));
   record(scenario, "deposit 5.00", receipt.transactionHash);
   const [ev] = parseEventLogs({ abi: reportBond.abi, eventName: "ReportSubmitted", logs: receipt.logs });
@@ -117,9 +132,6 @@ async function submit(scenario: string, n: number) {
   check(`advisory link stored for #${ev.args.reportId}`, saved.status === 200, saved.body);
   return ev.args.reportId;
 }
-
-const credits = async () =>
-  (await chainClient.readContract({ ...reportBond, functionName: "credits", args: [reporter.address] })) as bigint;
 
 async function main() {
   console.log(`Network: ${config.network} (${chain.id}), contract ${config.contractAddress}\n`);
@@ -131,8 +143,18 @@ async function main() {
     await test.setBalance({ address: process.env.RELAYER_ADDRESS as Hex, value: parseUsdc("100") });
   }
 
-  // Start from zero credits so the totals below are exact.
-  if ((await credits()) > 0n) await send(reporter, "withdraw", []);
+  // Start clean so the totals below are exact: refund anything left open by an earlier run, then withdraw.
+  execSync("pnpm keeper --once", { stdio: "inherit", env: { ...process.env, NETWORK: config.network } });
+  await withdraw("setup");
+  // The maintainer takes back unused funding from earlier runs' pools (allowed once no reports are open).
+  const earlier = await call(`/api/pools?creator=${maintainer.address.toLowerCase()}`);
+  for (const p of earlier.body.pools ?? []) {
+    if (p.openReports === 0 && BigInt(p.fundedBalance) > 0n) {
+      const r = await send(maintainer, "withdrawPoolFunds", [BigInt(p.id), BigInt(p.fundedBalance)]);
+      record("setup", `creator withdraws ${formatUsdc(BigInt(p.fundedBalance))} from pool #${p.id}`, r.transactionHash);
+      check(`creator withdrew unused funds from pool #${p.id}, slashed funds stay`, r.status === "success");
+    }
+  }
 
   console.log("Pool");
   const created = await send(maintainer, "createPool", [repoIdOf(REPO), maintainer.address, parseUsdc("5"), TIMEOUT, parseUsdc("3")], parseUsdc("10"));
@@ -208,13 +230,17 @@ async function main() {
 
   console.log("Withdraw and balances");
   const owed = await credits();
-  check("reporter credited 7.00 (A) + 5.00 (B) + 5.00 (D) = 17.00", owed === parseUsdc("17"), formatUsdc(owed));
   const before = await chainClient.getBalance({ address: reporter.address });
   const w = await send(reporter, "withdraw", []);
-  record("A/B/D", "reporter withdraws 17.00", w.transactionHash);
+  record("A/B/D", `reporter withdraws ${formatUsdc(owed)}`, w.transactionHash);
   const after = await chainClient.getBalance({ address: reporter.address });
   const gas = w.gasUsed * w.effectiveGasPrice;
-  check("reporter received exactly 17.00 (plus gas paid)", after - before + gas === parseUsdc("17"), formatUsdc(after - before));
+  check("final withdrawal paid exactly what was owed", after - before + gas === owed, formatUsdc(after - before));
+  check(
+    "reporter got back 7.00 (A) + 5.00 (B) + 5.00 (D) = 17.00 in total",
+    withdrawn + owed === parseUsdc("17"),
+    formatUsdc(withdrawn + owed),
+  );
   const final = await call(`/api/pools/${poolId}`);
   check("pool funded 8.00 (10 - 2 bounty)", final.body.pool?.fundedBalance === parseUsdc("8").toString(), final.body.pool);
   check("pool slashed 10.00 (C + E)", final.body.pool?.slashedBalance === parseUsdc("10").toString(), final.body.pool);

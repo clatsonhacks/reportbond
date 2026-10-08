@@ -10,7 +10,7 @@
     "sync-abi": "node scripts/sync-abi.mjs",
     "indexer": "tsx --conditions=react-server jobs/indexer.ts",
     "keeper": "tsx --conditions=react-server jobs/keeper.ts",
-    "e2e": "tsx --conditions=react-server scripts/e2e-local.ts"
+    "e2e": "tsx --conditions=react-server scripts/e2e.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",

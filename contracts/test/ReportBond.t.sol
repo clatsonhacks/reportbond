@@ -48,6 +48,27 @@ contract ReentrantReporter {
     }
 }
 
+/// Reporter whose wallet rejects incoming payments.
+contract RejectingReporter {
+    ReportBond public immutable bond;
+
+    constructor(ReportBond bond_) {
+        bond = bond_;
+    }
+
+    function submit(uint256 poolId, uint256 deposit) external returns (uint256) {
+        return bond.submitReport{value: deposit}(poolId, keccak256("rejecting"));
+    }
+
+    function pull() external {
+        bond.withdraw();
+    }
+
+    receive() external payable {
+        revert("no thanks");
+    }
+}
+
 contract ReportBondTestBase is Test {
     ReportBond bond;
 
@@ -210,6 +231,33 @@ contract ReportBondTest is ReportBondTestBase {
         assertEq(uint8(_status(id)), MISTAKE);
     }
 
+    function test_Acknowledge_ExpiredOrWrongSigner_Reverts() public {
+        uint256 id = _submit();
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 structHash = keccak256(abi.encode(bond.ACKNOWLEDGE_TYPEHASH(), id, deadline));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", bond.domainSeparator(), structHash));
+
+        vm.expectRevert(ReportBond.InvalidSignature.selector);
+        bond.acknowledge(id, deadline, _sign(0xBAD, digest));
+
+        bytes memory sig = _sign(signerKey, digest);
+        vm.warp(deadline + 1);
+        vm.expectRevert(ReportBond.SignatureExpired.selector);
+        bond.acknowledge(id, deadline, sig);
+    }
+
+    function test_FundPool_ZeroValue_Reverts() public {
+        vm.prank(creator);
+        vm.expectRevert(ReportBond.ZeroValue.selector);
+        bond.fundPool{value: 0}(poolId);
+    }
+
+    function test_Submit_ZeroAdvisoryHash_Reverts() public {
+        vm.prank(reporter);
+        vm.expectRevert(ReportBond.ZeroValue.selector);
+        bond.submitReport{value: DEPOSIT}(poolId, bytes32(0));
+    }
+
     // ---------------------------------------------------------- verdicts
 
     function test_Valid_CreditsDepositPlusBounty_SlashedFirst() public {
@@ -239,6 +287,7 @@ contract ReportBondTest is ReportBondTestBase {
         (uint256 funded, uint256 slashed,) = _balances(poolId);
         assertEq(slashed, 0);
         assertEq(funded, FUNDING - 1 ether);
+        assertEq(bond.availableBounty(poolId), funded + slashed);
     }
 
     function test_Mistake_CreditsDepositOnly() public {
@@ -506,6 +555,24 @@ contract ReportBondTest is ReportBondTestBase {
         (uint256 funded, uint256 slashed,) = _balances(poolId);
         assertEq(funded, 0);
         assertEq(slashed, DEPOSIT);
+    }
+
+    function test_PoolWithdraw_ZeroAmount_Reverts() public {
+        vm.prank(creator);
+        vm.expectRevert(ReportBond.ZeroValue.selector);
+        bond.withdrawPoolFunds(poolId, 0);
+    }
+
+    function test_Withdraw_RejectingReceiver_KeepsCredit() public {
+        RejectingReporter r = new RejectingReporter(bond);
+        vm.deal(address(r), DEPOSIT);
+        uint256 id = r.submit(poolId, DEPOSIT);
+        _verdict(id, MISTAKE, 0);
+
+        vm.expectRevert(ReportBond.TransferFailed.selector);
+        r.pull();
+        // The whole call reverted, so the credit is still owed and can be pulled later.
+        assertEq(bond.credits(address(r)), DEPOSIT);
     }
 
     function test_PoolWithdraw_NonCreator_Reverts() public {

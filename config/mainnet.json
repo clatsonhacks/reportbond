@@ -1,0 +1,10 @@
+{
+  "network": "mainnet",
+  "chainId": 5042,
+  "rpcUrl": "https://rpc.mainnet.arc.io",
+  "rpcFallbackUrl": "https://rpc.drpc.mainnet.arc.io",
+  "explorerUrl": "https://explorer.arc.io",
+  "contractAddress": "0x0000000000000000000000000000000000000000",
+  "deployBlock": 0,
+  "isTestnet": false
+}

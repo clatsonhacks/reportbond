@@ -1,0 +1,10 @@
+{
+  "network": "testnet",
+  "chainId": 5042002,
+  "rpcUrl": "https://rpc.testnet.arc.network",
+  "rpcFallbackUrl": "https://rpc.drpc.testnet.arc.network",
+  "explorerUrl": "https://testnet.arcscan.app",
+  "contractAddress": "0x0000000000000000000000000000000000000000",
+  "deployBlock": 0,
+  "isTestnet": true
+}

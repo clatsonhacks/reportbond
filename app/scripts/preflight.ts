@@ -12,8 +12,8 @@ const TAG = "v0.1-testnet-passed";
 const mainnet = config.network === "mainnet";
 const prefix = mainnet ? "MAINNET" : "TEST";
 const need = mainnet
-  ? { deployer: "0.3", maintainer: "2.2", reporter: "1.2", stranger: "0.05", relayer: "0.5" }
-  : { deployer: "0", maintainer: "10.5", reporter: "10.5", stranger: "0.1", relayer: "0.5" };
+  ? { deployer: "0.3", maintainer: "2.1", reporter: "1.1", stranger: "0.05", relayer: "0.5" }
+  : { deployer: "0", maintainer: "10.2", reporter: "10.3", stranger: "0.1", relayer: "0.5" };
 
 let failures = 0;
 function check(name: string, ok: boolean, detail?: string) {

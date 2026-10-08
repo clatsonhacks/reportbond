@@ -210,6 +210,19 @@ async function main() {
   console.log("B. Mistake");
   check("relayed Mistake verdict", Boolean((await relay("B", await submit("B", 1), Verdict.Mistake, 0n)).body.hash));
 
+  // E runs before C and settles as a Mistake, so the reporter never has two forfeited deposits at once.
+  console.log("E. Tampered and replayed");
+  const e = await submit("E", 3);
+  const slopSig = await signedVerdict(e, Verdict.Slop, 0n);
+  const tampered = await call("/api/relay/verdict", { json: { ...slopSig, verdict: Verdict.Valid } });
+  check("Slop signature changed to Valid -> InvalidSignature", tampered.body.code === "InvalidSignature", tampered.body);
+  const sig = await signedVerdict(e, Verdict.Mistake, 0n);
+  const first = await call("/api/relay/verdict", { json: sig });
+  await chainClient.waitForTransactionReceipt({ hash: first.body.hash });
+  record("E", "Mistake verdict", first.body.hash);
+  const replay = await call("/api/relay/verdict", { json: sig });
+  check("same signature sent again -> ReportNotOpen", replay.body.code === "ReportNotOpen", replay.body);
+
   console.log("C. Slop");
   check("relayed Slop verdict", Boolean((await relay("C", await submit("C", 2), Verdict.Slop, 0n)).body.hash));
   const slopWithdraw = await call(`/api/pools/${poolId}`);
@@ -218,17 +231,6 @@ async function main() {
     slopWithdraw.body.pool?.slashedBalance === DEPOSIT.toString(),
     slopWithdraw.body.pool,
   );
-
-  console.log("E. Tampered and replayed");
-  const e = await submit("E", 3);
-  const sig = await signedVerdict(e, Verdict.Slop, 0n);
-  const tampered = await call("/api/relay/verdict", { json: { ...sig, verdict: Verdict.Valid } });
-  check("Slop signature changed to Valid -> InvalidSignature", tampered.body.code === "InvalidSignature", tampered.body);
-  const first = await call("/api/relay/verdict", { json: sig });
-  await chainClient.waitForTransactionReceipt({ hash: first.body.hash });
-  record("E", "original Slop verdict", first.body.hash);
-  const replay = await call("/api/relay/verdict", { json: sig });
-  check("replayed signature -> ReportNotOpen", replay.body.code === "ReportNotOpen", replay.body);
 
   console.log("D. No response, refunded without our server");
   if (local) {
@@ -257,16 +259,16 @@ async function main() {
   const gas = w.gasUsed * w.effectiveGasPrice;
   check("final withdrawal paid exactly what was owed", after - before + gas === owed, formatUsdc(after - before));
   check(
-    `reporter got back ${usd(DEPOSIT + BOUNTY)} (A) + ${usd(DEPOSIT)} (B) + ${usd(DEPOSIT)} (D) = ${usd(3n * DEPOSIT + BOUNTY)} in total`,
-    withdrawn + owed === 3n * DEPOSIT + BOUNTY,
+    `reporter got back ${usd(DEPOSIT + BOUNTY)} (A) + ${usd(DEPOSIT)} each for B, E and D = ${usd(4n * DEPOSIT + BOUNTY)} in total`,
+    withdrawn + owed === 4n * DEPOSIT + BOUNTY,
     formatUsdc(withdrawn + owed),
   );
   const final = await call(`/api/pools/${poolId}`);
   check(`pool funded ${usd(FUND - BOUNTY)} (${usd(FUND)} - ${usd(BOUNTY)} bounty)`, final.body.pool?.fundedBalance === (FUND - BOUNTY).toString(), final.body.pool);
-  check(`pool slashed ${usd(2n * DEPOSIT)} (C + E)`, final.body.pool?.slashedBalance === (2n * DEPOSIT).toString(), final.body.pool);
+  check(`pool slashed ${usd(DEPOSIT)} (C)`, final.body.pool?.slashedBalance === DEPOSIT.toString(), final.body.pool);
   check(
     "pool outcomes",
-    JSON.stringify(final.body.pool?.outcomes) === JSON.stringify({ valid: 1, mistake: 1, slop: 2, refunded: 1 }),
+    JSON.stringify(final.body.pool?.outcomes) === JSON.stringify({ valid: 1, mistake: 2, slop: 1, refunded: 1 }),
     final.body.pool?.outcomes,
   );
 

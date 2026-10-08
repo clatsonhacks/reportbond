@@ -1,0 +1,24 @@
+name: Refund keeper
+
+# Calls the hosted app's /api/cron/keeper every hour, so reports past their deadline get refunded
+# even if nobody presses the button. Refunds are open to anyone on-chain; this just automates it.
+# Needs repo secrets APP_URL (e.g. https://reportbond.vercel.app) and CRON_SECRET (same value as the host).
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  keeper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call keeper endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_URL or CRON_SECRET not set; skipping."
+            exit 0
+          fi
+          curl --fail-with-body -sS -m 90 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/keeper"

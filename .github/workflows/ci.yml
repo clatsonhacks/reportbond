@@ -40,3 +40,15 @@ jobs:
       - run: pnpm build
         env:
           NETWORK: testnet
+      - name: Storage tests (files)
+        run: pnpm test:db
+        env:
+          NETWORK: local
+      - name: Storage tests (Postgres)
+        run: |
+          node node_modules/@electric-sql/pglite-socket/dist/scripts/server.js --port=5433 --max-connections=20 &
+          sleep 3
+          pnpm test:db
+        env:
+          NETWORK: local
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5433/postgres

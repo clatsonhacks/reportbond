@@ -96,8 +96,9 @@ type Store = {
   getChain(): Promise<ChainData>;
   /** `force` allows going backwards (re-indexing a restarted local chain). */
   putChain(d: ChainData, force?: boolean): Promise<void>;
-  getPrivate(): Promise<PrivateData>;
-  updatePrivate(fn: (d: PrivateData) => void): Promise<void>;
+  /** Named records ("private", "github", ...) with locked read-modify-write updates. */
+  getRecord<T>(name: string, fallback: () => T): Promise<T>;
+  updateRecord<T>(name: string, fallback: () => T, fn: (d: T) => void): Promise<void>;
 };
 
 // ------------------------------------------------------------------ Postgres
@@ -114,7 +115,7 @@ function postgresStore(url: string): Store {
         updated_at timestamptz not null default now()
       )`);
   const chainKey = `${deployment}:chain`;
-  const privateKey = `${deployment}:private`;
+  const recordKey = (name: string) => `${deployment}:${name}`;
 
   return {
     async getChain() {
@@ -130,20 +131,23 @@ function postgresStore(url: string): Store {
         on conflict (key) do update set value = excluded.value, updated_at = now()
         where ${force} or (reportbond_kv.value->>'lastBlock')::bigint <= (excluded.value->>'lastBlock')::bigint`;
     },
-    async getPrivate() {
+    async getRecord<T>(name: string, fallback: () => T) {
       await init();
-      const [row] = await sql<{ value: PrivateData }[]>`select value from reportbond_kv where key = ${privateKey}`;
-      return row?.value ?? emptyPrivate();
+      const [row] = await sql<{ value: T }[]>`select value from reportbond_kv where key = ${recordKey(name)}`;
+      return row?.value ?? fallback();
     },
-    async updatePrivate(fn) {
+    async updateRecord<T>(name: string, fallback: () => T, fn: (d: T) => void) {
       await init();
+      const key = recordKey(name);
       await sql.begin(async (tx) => {
-        await tx`insert into reportbond_kv (key, value) values (${privateKey}, ${tx.json(emptyPrivate())}) on conflict do nothing`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await tx`insert into reportbond_kv (key, value) values (${key}, ${tx.json(fallback() as any)}) on conflict do nothing`;
         // Row lock: concurrent requests apply their changes one after another, so none is lost.
-        const [row] = await tx<{ value: PrivateData }[]>`select value from reportbond_kv where key = ${privateKey} for update`;
+        const [row] = await tx<{ value: T }[]>`select value from reportbond_kv where key = ${key} for update`;
         const d = row.value;
         fn(d);
-        await tx`update reportbond_kv set value = ${tx.json(d)}, updated_at = now() where key = ${privateKey}`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await tx`update reportbond_kv set value = ${tx.json(d as any)}, updated_at = now() where key = ${key}`;
       });
     },
   };
@@ -154,7 +158,7 @@ function postgresStore(url: string): Store {
 function fileStore(): Store {
   const dir = path.join(process.cwd(), ".data");
   const chainFile = path.join(dir, `${deployment}.chain.json`);
-  const privateFile = path.join(dir, `${deployment}.private.json`);
+  const recordFile = (name: string) => path.join(dir, `${deployment}.${name}.json`);
 
   // Every read checks the file's mtime, so separate route bundles and the job processes stay in step.
   const cache = new Map<string, { mtimeMs: number; value: unknown }>();
@@ -182,14 +186,15 @@ function fileStore(): Store {
     async putChain(d) {
       write(chainFile, d);
     },
-    async getPrivate() {
-      return read(privateFile, emptyPrivate);
+    async getRecord<T>(name: string, fallback: () => T) {
+      return read(recordFile(name), fallback);
     },
     // No await between read and write, so concurrent requests in this process can't lose each other's writes.
-    async updatePrivate(fn) {
-      const d = structuredClone(read(privateFile, emptyPrivate));
+    async updateRecord<T>(name: string, fallback: () => T, fn: (d: T) => void) {
+      const file = recordFile(name);
+      const d = structuredClone(read(file, fallback));
       fn(d);
-      write(privateFile, d);
+      write(file, d);
     },
   };
 }
@@ -211,9 +216,56 @@ export function saveChain(d: ChainData, force = false): Promise<void> {
 }
 
 export async function loadPrivate(): Promise<PrivateData> {
-  return store.getPrivate();
+  return store.getRecord("private", emptyPrivate);
 }
 
 export function updatePrivate(fn: (d: PrivateData) => void): Promise<void> {
-  return store.updatePrivate(fn);
+  return store.updateRecord("private", emptyPrivate, fn);
+}
+
+// ------------------------------------------------------------------- GitHub
+
+export type GithubRepo = { id: number; fullName: string; installationId: number };
+
+export type TrackedAdvisory = {
+  ghsa: string;
+  repo: string; // owner/repo, lowercase
+  url: string; // canonical advisory link, as hashed on-chain
+  advisoryHash: string;
+  reporter: string | null; // GitHub login
+  githubState: string; // triage, draft, closed, published
+  reportedAt: number; // unix seconds
+  updatedAt: number;
+  /** Verdict status last written back to GitHub, so each one is synced once. */
+  syncedStatus?: number;
+  syncError?: string;
+};
+
+export type GithubData = {
+  /** Installations of our GitHub App and the repos each one can access. */
+  installations: Record<string, { account: string; repos: Record<string, GithubRepo>; updatedAt: number }>;
+  /** Pools whose creator proved admin access to the repo through GitHub. */
+  verifiedPools: Record<string, { repo: string; login: string; installationId: number; verifiedAt: number }>;
+  /** Private vulnerability reports received by webhook, by GHSA ID. */
+  advisories: Record<string, TrackedAdvisory>;
+  /** Maintainer GitHub sessions, by random session ID. */
+  sessions: Record<string, { login: string; repos: GithubRepo[]; expiresAt: number }>;
+  /** Recent webhook delivery IDs, so a redelivered webhook is applied once. */
+  deliveries: string[];
+};
+
+export const emptyGithub = (): GithubData => ({
+  installations: {},
+  verifiedPools: {},
+  advisories: {},
+  sessions: {},
+  deliveries: [],
+});
+
+export async function loadGithub(): Promise<GithubData> {
+  return store.getRecord("github", emptyGithub);
+}
+
+export function updateGithub(fn: (d: GithubData) => void): Promise<void> {
+  return store.updateRecord("github", emptyGithub, fn);
 }

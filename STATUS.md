@@ -32,6 +32,15 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Every transaction shows its state (wallet, pending, confirmed with explorer link, failed with a plain reason)
 - [x] Testnet banner; light and dark themes
 
+### GitHub App (platform phase 1, see [PLATFORM.md](PLATFORM.md))
+
+- [x] Connect GitHub: maintainers install the app or sign in; only repos they administer are offered
+- [x] Verified pools: a pool is linked to a repo only if its creator proves admin access; pages show "Verified maintainer"
+- [x] Report tracker: private reports arrive by webhook and show as deposit paid, awaiting deposit, or unbonded after 48 hours
+- [x] Verdicts written back to GitHub: Valid accepts the advisory, Mistake and Slop close it
+- [x] `pnpm test:github`: full flow against a mock GitHub
+- [ ] Register the real app: settings in [GITHUB_APP.md](GITHUB_APP.md)
+
 ### Testing
 
 | Layer | Status |

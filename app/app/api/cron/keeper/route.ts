@@ -2,6 +2,7 @@
 // (Vercel Cron sends this header automatically when CRON_SECRET is set.) Refunds are open to anyone
 // on-chain anyway; the secret only stops strangers from spending the relayer's gas.
 import { isDeployed } from "@/lib/server/indexer";
+import { syncAdvisoryStates } from "@/lib/server/githubSync";
 import { runKeeper } from "@/lib/server/keeper";
 import { bad, json } from "@/lib/server/views";
 
@@ -12,7 +13,10 @@ async function handle(req: Request) {
   if (!secret) return bad("CRON_SECRET is not set", 503);
   if (req.headers.get("authorization") !== `Bearer ${secret}`) return bad("Unauthorized", 401);
   if (!isDeployed) return bad("Contract not deployed on this network", 503);
-  return json(await runKeeper());
+  const refunds = await runKeeper();
+  // Also retry writing verdicts back to GitHub, in case an earlier attempt failed.
+  const github = await syncAdvisoryStates();
+  return json({ ...refunds, github });
 }
 
 export const GET = handle;

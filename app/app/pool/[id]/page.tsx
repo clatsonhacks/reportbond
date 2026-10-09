@@ -1,5 +1,6 @@
 "use client";
 
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { StatusPill } from "@/components/StatusPill";
@@ -22,6 +23,13 @@ export default function PoolPage() {
       <Card className="fade-in">
         <p className="text-sm text-ink-muted">Security reports</p>
         <h1 className="mt-1 text-2xl font-semibold break-words">{pool.repoName ?? `Pool #${pool.id}`}</h1>
+        <div className="mt-2">
+          {pool.verifiedBy ? (
+            <VerifiedBadge login={pool.verifiedBy} />
+          ) : (
+            <span className="text-xs text-ink-muted">Not verified on GitHub: check the repo&apos;s SECURITY.md links here.</span>
+          )}
+        </div>
 
         {/* The three numbers answer: what do I risk, what can I win, how long do I wait. */}
         <dl className="mt-5 divide-y divide-line border-y border-line">

@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { Hex } from "viem";
 import { useAccount, useSignTypedData, useWriteContract } from "wagmi";
+import { GithubReports } from "@/components/GithubReports";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, Card, Empty, Loading, Notice, Row } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
@@ -20,7 +21,9 @@ import { useTx } from "@/lib/useTx";
 
 export default function MaintainerPool() {
   const { id } = useParams<{ id: string }>();
-  const created = useSearchParams().get("created");
+  const search = useSearchParams();
+  const created = search.get("created");
+  const verifyFailed = search.get("verify") === "failed";
   const { data, isLoading, error, refetch } = usePool(id);
   const queue = useReports({ pool: id, open: "1" });
   const { address } = useAccount();
@@ -55,6 +58,13 @@ export default function MaintainerPool() {
         </Notice>
       )}
 
+      {verifyFailed && (
+        <Notice tone="waiting">
+          The pool was created, but linking it to GitHub didn&apos;t finish. Use &quot;Verify with GitHub&quot; below to try
+          again.
+        </Notice>
+      )}
+
       <WalletGate>
         {!isSigner && (
           <Notice tone="waiting">
@@ -79,6 +89,8 @@ export default function MaintainerPool() {
             </ul>
           )}
         </section>
+
+        <GithubReports pool={pool} isCreator={isCreator} />
 
         <PoolMoney pool={pool} isCreator={isCreator} onDone={refresh} />
       </WalletGate>

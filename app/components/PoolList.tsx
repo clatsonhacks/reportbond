@@ -5,6 +5,7 @@ import { usePools, useStatus } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { Amount, Empty, Loading, Notice } from "./ui";
 import { BugIcon } from "./icons";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 export function PoolList({ creator }: { creator?: string }) {
   const status = useStatus();
@@ -35,6 +36,11 @@ export function PoolList({ creator }: { creator?: string }) {
                 <h3 className="mt-2 text-2xl font-black tracking-tight">
                   {p.repoName ?? <span className="text-ink-muted">Unnamed Repository</span>}
                 </h3>
+                {p.verifiedBy && (
+                  <div className="mt-2">
+                    <VerifiedBadge login={p.verifiedBy} />
+                  </div>
+                )}
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-ink group-hover:scale-110 state-change">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>

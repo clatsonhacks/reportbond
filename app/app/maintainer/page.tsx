@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { isAddress, parseEventLogs, type Address } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { GithubConnect } from "@/components/GithubConnect";
 import { PoolList } from "@/components/PoolList";
 import { TxStatus } from "@/components/TxStatus";
 import { Button, Card, Notice } from "@/components/ui";
@@ -12,7 +13,9 @@ import { post } from "@/lib/api";
 import { repoIdOf } from "@/lib/advisory";
 import { reportBond } from "@/lib/contract";
 import { formatUsdc, parseUsdc } from "@/lib/format";
+import { useGithubSession } from "@/lib/github";
 import { config } from "@/lib/network";
+import { useSignIn } from "@/lib/useSignIn";
 import { useTx } from "@/lib/useTx";
 
 const REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
@@ -25,6 +28,9 @@ export default function Maintainer() {
         <h1 className="text-2xl font-semibold">Maintainer console</h1>
         <p className="mt-1 text-ink-muted">Open a pool for your repo, then review reports as they arrive.</p>
       </div>
+      <Suspense>
+        <GithubConnect />
+      </Suspense>
       <WalletGate>
         <section className="space-y-3 slide-up">
           <h2 className="font-semibold">Your pools</h2>
@@ -44,9 +50,13 @@ function CreatePool() {
   const client = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const tx = useTx();
+  const signIn = useSignIn();
   const quick = config.isTestnet;
+  const github = useGithubSession();
+  const ghRepos = github.data?.connected ? github.data.repos : [];
 
   const [repo, setRepo] = useState("");
+  const [manualRepo, setManualRepo] = useState(false);
   const [deposit, setDeposit] = useState(config.network === "mainnet" ? "0.50" : "5");
   const [timeoutValue, setTimeoutValue] = useState(quick ? "5" : "14");
   const [timeoutUnit, setTimeoutUnit] = useState<"minutes" | "days">(quick ? "minutes" : "days");
@@ -89,8 +99,20 @@ function CreatePool() {
     const receipt = await client.getTransactionReceipt({ hash });
     const [ev] = parseEventLogs({ abi: reportBond.abi, eventName: "PoolCreated", logs: receipt.logs });
     const poolId = ev.args.poolId.toString();
-    await post(`/api/pools/${poolId}/repo`, { repo: repo.trim() }).catch(() => {});
-    router.push(`/maintainer/pool/${poolId}?created=1`);
+    const name = repo.trim().toLowerCase();
+    let verify = "";
+    if (ghRepos.includes(name)) {
+      // Link the pool to the repo through GitHub: proves this wallet's owner administers it.
+      try {
+        const token = await signIn();
+        await post(`/api/pools/${poolId}/verify`, { repo: name }, { authorization: `Bearer ${token}` });
+      } catch {
+        verify = "&verify=failed";
+      }
+    } else {
+      await post(`/api/pools/${poolId}/repo`, { repo: name }).catch(() => {});
+    }
+    router.push(`/maintainer/pool/${poolId}?created=1${verify}`);
   }
 
   const field = "w-full rounded-[8px] border border-line bg-surface px-3 py-2 text-sm";
@@ -100,7 +122,41 @@ function CreatePool() {
       <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="space-y-1 sm:col-span-2">
           <span className="text-sm font-medium">GitHub repo</span>
-          <input className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" required />
+          {ghRepos.length > 0 && !manualRepo ? (
+            <select className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} required>
+              <option value="" disabled>
+                Choose a repository you administer
+              </option>
+              {ghRepos.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" required />
+          )}
+          <span className="block text-xs text-ink-muted">
+            {ghRepos.length > 0 ? (
+              <>
+                {manualRepo
+                  ? "Pools for repos not picked from GitHub show as unverified."
+                  : "Verified through GitHub: reporters see who maintains this pool."}{" "}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => {
+                    setManualRepo(!manualRepo);
+                    setRepo("");
+                  }}
+                >
+                  {manualRepo ? "Pick from GitHub instead" : "Type a repo instead"}
+                </button>
+              </>
+            ) : (
+              "Connect GitHub above to pick a repo you administer and get a verified badge."
+            )}
+          </span>
         </label>
         <label className="space-y-1">
           <span className="text-sm font-medium">Deposit (USDC)</span>

@@ -1,4 +1,5 @@
 import { Status } from "@/lib/eip712";
+import type { ReactElement } from "react";
 
 function WaitingIcon() {
   return (
@@ -44,7 +45,7 @@ function QuestionIcon() {
 }
 
 // Never colour alone: every status has a label and an icon too.
-const styles: Record<number, { label: string; Icon: () => JSX.Element; cls: string; border: string }> = {
+const styles: Record<number, { label: string; Icon: () => ReactElement; cls: string; border: string }> = {
   [Status.Submitted]: { label: "Waiting", Icon: WaitingIcon, cls: "bg-waiting-bg text-waiting", border: "border-waiting/30" },
   [Status.Acknowledged]: { label: "Acknowledged", Icon: WaitingIcon, cls: "bg-waiting-bg text-waiting", border: "border-waiting/30" },
   [Status.Valid]: { label: "Valid", Icon: CheckIcon, cls: "bg-returned-bg text-returned", border: "border-returned/30" },

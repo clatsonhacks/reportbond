@@ -1,0 +1,20 @@
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
+  "env": {
+    "NETWORK": "testnet"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/keeper",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

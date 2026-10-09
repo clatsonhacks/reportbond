@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "sync-abi": "node scripts/sync-abi.mjs",
@@ -12,7 +12,8 @@
     "keeper": "tsx --conditions=react-server jobs/keeper.ts",
     "e2e": "tsx --conditions=react-server scripts/e2e.ts",
     "test:db": "tsx --conditions=react-server scripts/test-db.ts",
-    "preflight": "tsx --conditions=react-server scripts/preflight.ts"
+    "preflight": "tsx --conditions=react-server scripts/preflight.ts",
+    "check:deploy": "tsx scripts/check-deployment.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",

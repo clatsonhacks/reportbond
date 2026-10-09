@@ -2,7 +2,7 @@
   "network": "testnet",
   "chainId": 5042002,
   "rpcUrl": "https://rpc.testnet.arc.network",
-  "rpcFallbackUrl": "https://rpc.drpc.testnet.arc.network",
+  "rpcFallbackUrl": "https://rpc.blockdaemon.testnet.arc.network",
   "explorerUrl": "https://testnet.arcscan.app",
   "contractAddress": "0x4963eCA8E60C1726CE1c123AcebF077024533d13",
   "deployBlock": 66199770,

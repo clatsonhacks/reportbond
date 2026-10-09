@@ -8,7 +8,7 @@ forge test                 # unit, fuzz and invariant tests
 forge coverage
 
 # deploy (testnet)
-forge script script/Deploy.s.sol --rpc-url https://rpc.drpc.testnet.arc.network \
+forge script script/Deploy.s.sol --rpc-url https://rpc.blockdaemon.testnet.arc.network \
   --private-key $DEPLOYER_PRIVATE_KEY --broadcast
 ```
 

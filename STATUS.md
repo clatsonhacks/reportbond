@@ -89,7 +89,7 @@ The end-to-end script (`app/scripts/e2e.ts`) runs the same scenarios on anvil an
 
 ### Known limitations
 
-- The main testnet RPC (`rpc.testnet.arc.network`) blocks some networks. The app falls back to drpc automatically.
+- The main testnet RPC (`rpc.testnet.arc.network`) blocks some networks. The app falls back to Blockdaemon automatically. (drpc's free tier rejects historical log queries, so it can't be the fallback.)
 - Storage keeps each deployment's data as one JSON record. That's fine for the Microgrant scale; at thousands of reports it should move to proper tables.
 - There's no check that a GitHub advisory really exists, only that the link has the right form and is on the pool's repo. Confirming it exists needs a GitHub App with "Repository security advisories: read".
 - The phone layout hasn't been checked on a real device.

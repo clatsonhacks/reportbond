@@ -85,7 +85,7 @@ cd app && NETWORK=local pnpm e2e     # scenarios A–E through the API, relayer 
 ## Testnet (Layer 3)
 
 1. Fund the deployer and relayer addresses in `.env` from https://faucet.circle.com (Arc Testnet).
-2. Deploy: `cd contracts && forge script script/Deploy.s.sol --rpc-url https://rpc.drpc.testnet.arc.network --private-key $DEPLOYER_PRIVATE_KEY --broadcast`
+2. Deploy: `cd contracts && forge script script/Deploy.s.sol --rpc-url https://rpc.blockdaemon.testnet.arc.network --private-key $DEPLOYER_PRIVATE_KEY --broadcast`
 3. Put the address and block number into `config/testnet.json`.
 4. `cd app && pnpm dev` (or `pnpm build && pnpm start`), plus `pnpm indexer` and `pnpm keeper` when hosted.
 5. With the `TEST_*` wallets in `.env` funded: `cd app && pnpm e2e` runs scenarios A–E on testnet (about 6 minutes).

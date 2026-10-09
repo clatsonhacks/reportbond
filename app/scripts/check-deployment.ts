@@ -4,6 +4,7 @@
  * Run with: pnpm tsx scripts/check-deployment.ts
  */
 
+import "../lib/server/env";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -37,7 +38,8 @@ addCheck(`config/${network}.json is valid JSON`, () => {
     if (!existsSync(configPath)) return false;
     const content = readFileSync(configPath, "utf8");
     const config = JSON.parse(content);
-    return Boolean(config.address && config.deployBlock);
+    const deployed = /^0x[0-9a-fA-F]{40}$/.test(config.contractAddress ?? "") && !/^0x0{40}$/.test(config.contractAddress);
+    return deployed && Number(config.deployBlock) > 0;
   } catch {
     return false;
   }
@@ -74,7 +76,7 @@ if (failed > 0) {
   console.log("❌ Deployment checks failed. Please fix the issues above.\n");
   console.log("Quick fixes:");
   console.log("  • Set missing environment variables in .env file");
-  console.log("  • Ensure config/${network}.json has contract address and deployBlock");
+  console.log(`  • Ensure config/${network}.json has contractAddress and deployBlock`);
   console.log("  • For Vercel, set variables in project settings\n");
   process.exit(1);
 }

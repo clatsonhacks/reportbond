@@ -1,10 +1,12 @@
 "use client";
 
+import { parseUsdc } from "@/lib/format";
 import { Amount } from "./ui";
 
-// Protocol fee constants (must match contract)
+// PROPOSED fees, not in the contract yet: ReportBond.sol charges no fees today. Keep these components
+// unused until the contract implements the same numbers.
 const REPORT_FEE_BPS = 100; // 1%
-const POOL_CREATION_FEE = 1_000_000n; // 1 USDC (6 decimals)
+const POOL_CREATION_FEE = parseUsdc("1"); // native USDC on Arc has 18 decimals
 const BOUNTY_FEE_BPS = 200; // 2%
 const BASIS_POINTS = 10_000;
 
@@ -114,7 +116,7 @@ export function ProtocolFeeExplainer() {
           </li>
         </ul>
         <p className="text-xs">
-          All fees are transparent and hardcoded in the smart contract. We don't take hidden fees or commissions.
+          All fees are transparent and fixed in the smart contract. We don&apos;t take hidden fees or commissions.
         </p>
         <div className="rounded-xl bg-surface p-3 mt-2">
           <div className="text-xs font-semibold mb-1">Fee Breakdown:</div>

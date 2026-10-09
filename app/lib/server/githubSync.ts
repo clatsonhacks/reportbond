@@ -3,7 +3,7 @@
 import "server-only";
 import { loadGithub, updateGithub } from "./db";
 import { setAdvisoryState, githubConfigured } from "./github";
-import { ensureFresh } from "./indexer";
+import { syncFresh } from "./indexer";
 
 const STATE_FOR: Record<number, "draft" | "closed"> = { 3: "draft", 4: "closed", 5: "closed" };
 
@@ -12,7 +12,7 @@ export type SyncResult = { synced: string[]; failed: { ghsa: string; error: stri
 export async function syncAdvisoryStates(): Promise<SyncResult> {
   const result: SyncResult = { synced: [], failed: [] };
   if (!githubConfigured()) return result;
-  const [chain, gh] = await Promise.all([ensureFresh(), loadGithub()]);
+  const [chain, gh] = await Promise.all([syncFresh(), loadGithub()]);
   const installationFor = new Map(Object.values(gh.verifiedPools).map((v) => [v.repo, v.installationId]));
 
   for (const a of Object.values(gh.advisories)) {

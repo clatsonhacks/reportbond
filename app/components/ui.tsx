@@ -12,7 +12,7 @@ const buttonBase =
 export const buttonStyles = {
   primary: `${buttonBase} bg-ink text-card shadow-minimal-lg hover:shadow-minimal-xl active:scale-[0.98] focus-visible:ring-ink/20`,
   secondary: `${buttonBase} border-2 border-ink/10 bg-card text-ink shadow-minimal hover:border-ink/20 hover:shadow-minimal-lg active:scale-[0.98] focus-visible:ring-ink/20`,
-  danger: `${buttonBase} border-2 border-slashed/20 bg-slashed-bg text-slashed shadow-minimal hover:bg-slashed hover:text-white hover:border-slashed active:scale-[0.98] focus-visible:ring-slashed/20`,
+  danger: `${buttonBase} border-2 border-slashed/20 bg-slashed-bg text-slashed shadow-minimal hover:bg-slashed hover:text-card hover:border-slashed active:scale-[0.98] focus-visible:ring-slashed/20`,
 };
 
 export function Button({

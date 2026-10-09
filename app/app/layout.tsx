@@ -23,7 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <Header />
           <main className="mx-auto w-full max-w-4xl px-6 py-12 sm:py-16">{children}</main>
           <footer className="mx-auto max-w-4xl px-6 pb-20 pt-16">
-            <div className="rounded-3xl border-2 border-gray-200 bg-white p-8 text-center">
+            <div className="rounded-3xl border-2 border-line bg-card p-8 text-center">
               <div className="mb-4 flex justify-center">
                 <svg className="h-12 w-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" opacity="0.1" />
@@ -32,12 +32,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   <circle cx="12" cy="16" r="1.5" fill="currentColor" />
                 </svg>
               </div>
-              <p className="mb-4 text-sm font-medium text-gray-700">
+              <p className="mb-4 text-sm font-medium text-ink-muted">
                 All deposits are held in a smart contract. Zero admin control. Zero withdrawal backdoors.
               </p>
               <Link
                 href="/#how-it-works"
-                className="inline-flex items-center gap-2 text-sm font-bold text-black hover:gap-3 state-change"
+                className="inline-flex items-center gap-2 text-sm font-bold text-ink hover:gap-3 state-change"
               >
                 Learn How It Works
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>

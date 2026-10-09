@@ -15,11 +15,11 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-line bg-card/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-6">
         <div className="flex items-center gap-10">
           <Link href="/" className="group flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-ink">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
@@ -35,8 +35,8 @@ export function Header() {
                   href={href}
                   className={`text-sm font-medium state-change ${
                     isActive
-                      ? "text-black"
-                      : "text-gray-500 hover:text-black"
+                      ? "text-ink"
+                      : "text-ink-muted hover:text-ink"
                   }`}
                 >
                   {label}
@@ -46,7 +46,7 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="hidden rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 sm:inline">
+          <span className="hidden rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted sm:inline">
             {chain.name}
           </span>
           <ConnectButton showBalance={{ smallScreen: false, largeScreen: true }} chainStatus="icon" accountStatus="address" />

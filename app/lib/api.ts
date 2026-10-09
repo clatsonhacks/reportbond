@@ -17,13 +17,20 @@ export const post = <T,>(path: string, body: unknown, headers?: Record<string, s
   api<T>(path, { method: "POST", body: JSON.stringify(body), headers });
 
 export function useStatus() {
-  return useQuery({ queryKey: ["status"], queryFn: () => api<StatusView>("/api/status") });
+  return useQuery({
+    queryKey: ["status"],
+    queryFn: () => api<StatusView>("/api/status"),
+    staleTime: 5 * 60 * 1000, // 5 minutes - status rarely changes
+    gcTime: 10 * 60 * 1000,
+  });
 }
 
 export function usePools(creator?: string) {
   return useQuery({
     queryKey: ["pools", creator ?? null],
     queryFn: () => api<{ pools: PoolView[] }>(`/api/pools${creator ? `?creator=${creator}` : ""}`),
+    staleTime: 30 * 1000, // 30 seconds - pools don't change that often
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -31,6 +38,8 @@ export function usePool(id: string) {
   return useQuery({
     queryKey: ["pool", id],
     queryFn: () => api<{ pool: PoolView; recent: ReportView[] }>(`/api/pools/${id}`),
+    staleTime: 20 * 1000, // 20 seconds
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -38,7 +47,9 @@ export function useReport(id: string) {
   return useQuery({
     queryKey: ["report", id],
     queryFn: () => api<{ report: ReportView; pool: PoolView | null }>(`/api/reports/${id}`),
-    refetchInterval: 10_000,
+    refetchInterval: 30_000, // Reduced from 10s to 30s
+    staleTime: 15 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -48,6 +59,8 @@ export function useReports(params: Record<string, string | undefined>, enabled =
     queryKey: ["reports", q],
     queryFn: () => api<{ reports: ReportView[] }>(`/api/reports?${q}`),
     enabled,
-    refetchInterval: 15_000,
+    refetchInterval: 30_000, // Reduced from 15s to 30s
+    staleTime: 20 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }

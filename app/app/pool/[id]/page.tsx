@@ -19,7 +19,7 @@ export default function PoolPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="fade-in">
         <p className="text-sm text-ink-muted">Security reports</p>
         <h1 className="mt-1 text-2xl font-semibold break-words">{pool.repoName ?? `Pool #${pool.id}`}</h1>
 
@@ -38,7 +38,7 @@ export default function PoolPage() {
         </div>
       </Card>
 
-      <details className="rounded-[8px] border border-line bg-card p-5">
+      <details className="slide-up rounded-[8px] border border-line bg-card p-5 state-change">
         <summary className="cursor-pointer font-medium">How it works</summary>
         <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-ink-muted">
           <li>File your private vulnerability report on GitHub first.</li>
@@ -57,7 +57,7 @@ export default function PoolPage() {
         </p>
       </details>
 
-      <section className="space-y-3">
+      <section className="space-y-3 slide-up">
         <h2 className="font-semibold">Recent outcomes</h2>
         <p className="text-sm text-ink-muted">
           {pool.outcomes.valid} valid · {plural(pool.outcomes.mistake, "honest mistake")} · {pool.outcomes.slop} slop ·{" "}
@@ -67,7 +67,7 @@ export default function PoolPage() {
           <ul className="divide-y divide-line rounded-[8px] border border-line bg-card">
             {recent.map((r) => (
               <li key={r.id}>
-                <Link href={`/report/${r.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-surface">
+                <Link href={`/report/${r.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-surface state-change">
                   <span className="num text-sm">#{r.id}</span>
                   <span className="text-sm text-ink-muted">{formatDate(r.timeline.at(-1)?.time ?? r.createdAt)}</span>
                   <StatusPill status={r.status} />
@@ -80,7 +80,7 @@ export default function PoolPage() {
         )}
       </section>
 
-      <p className="text-sm text-ink-muted">
+      <p className="slide-up text-sm text-ink-muted">
         Pool created {formatDate(pool.createdAt)} by{" "}
         {creatorUrl ? (
           <a href={creatorUrl} target="_blank" rel="noreferrer" className="num underline underline-offset-2">

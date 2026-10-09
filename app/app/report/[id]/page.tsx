@@ -66,7 +66,7 @@ export default function ReportStatus() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="fade-in">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="min-w-0 text-xl font-semibold break-words">
             Report <span className="num">#{r.id}</span>
@@ -139,8 +139,16 @@ export default function ReportStatus() {
         </div>
       </Card>
 
-      {address?.toLowerCase() === r.reporter && <WithdrawCard />}
-      {isParty && r.hasAdvisoryLink && <AdvisoryLink reportId={r.id} />}
+      {address?.toLowerCase() === r.reporter && (
+        <div className="slide-up">
+          <WithdrawCard />
+        </div>
+      )}
+      {isParty && r.hasAdvisoryLink && (
+        <div className="slide-up">
+          <AdvisoryLink reportId={r.id} />
+        </div>
+      )}
     </div>
   );
 }
@@ -163,7 +171,10 @@ function TimelineStep({
   return (
     <li className="state-change grid grid-cols-[1.25rem_1fr_auto] items-baseline gap-x-3 border-b border-line py-3 last:border-0 sm:grid-cols-[1.25rem_9rem_8rem_1fr_auto]">
       <span aria-hidden className={done ? "text-accent" : "text-ink-muted"}>
-        {done ? "●" : "○"}
+        <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="6" fill={done ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" />
+          {done && <circle cx="8" cy="8" r="3" fill="white" />}
+        </svg>
       </span>
       <span className={done ? "font-medium" : "text-ink-muted"}>
         {title}

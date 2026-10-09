@@ -1,44 +1,24 @@
 @import "tailwindcss";
 
-/* The glass vault (docs/DESIGN.md): calm, transparent, exact. Each colour means exactly one thing. */
+/* Force light mode - monochromatic minimalist design */
 :root {
-  --ink: #16191d;
-  --ink-muted: #59616b;
-  --surface: #f7f7f5;
+  color-scheme: light only;
+  --ink: #000000;
+  --ink-muted: #6b7280;
+  --surface: #f5f5f5;
   --card: #ffffff;
-  --line: #e2e4e1;
-  --accent: #0f766e;
+  --line: #e5e7eb;
+  --accent: #111827;
   --accent-ink: #ffffff;
-  --returned: #15803d;
-  --returned-bg: #e8f5ec;
-  --waiting: #b45309;
-  --waiting-bg: #fdf3e2;
-  --slashed: #b91c1c;
-  --slashed-bg: #fbeaea;
-  --testnet: #6d28d9;
-  --testnet-bg: #f1eafd;
-  --focus: #2563eb;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #eceef0;
-    --ink-muted: #9aa3ad;
-    --surface: #121417;
-    --card: #1a1d21;
-    --line: #2b2f35;
-    --accent: #2dd4bf;
-    --accent-ink: #062b27;
-    --returned: #4ade80;
-    --returned-bg: #13261a;
-    --waiting: #fbbf24;
-    --waiting-bg: #2a2110;
-    --slashed: #f87171;
-    --slashed-bg: #2c1414;
-    --testnet: #c4b5fd;
-    --testnet-bg: #241a3a;
-    --focus: #93c5fd;
-  }
+  --returned: #10b981;
+  --returned-bg: #d1fae5;
+  --waiting: #f59e0b;
+  --waiting-bg: #fef3c7;
+  --slashed: #ef4444;
+  --slashed-bg: #fee2e2;
+  --testnet: #8b5cf6;
+  --testnet-bg: #ede9fe;
+  --focus: #6366f1;
 }
 
 @theme inline {
@@ -62,9 +42,14 @@
   --radius-card: 8px;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--surface);
+  background: #f5f5f5;
   color: var(--ink);
+  min-height: 100vh;
 }
 
 :focus-visible {
@@ -82,4 +67,214 @@ body {
   .state-change {
     transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease;
   }
+
+  .smooth-transform {
+    transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in {
+    animation: fadeIn 600ms ease-out;
+  }
+
+  .slide-up {
+    animation: slideUp 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bugWiggle {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes bugCrawl {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(8px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes dashFlow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.bug-wiggle {
+  animation: bugWiggle 2s ease-in-out infinite;
+}
+
+.bug-crawl {
+  animation: bugCrawl 3s ease-in-out infinite;
+}
+
+.pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.float-slow {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-dash {
+  animation: dashFlow 2s linear infinite;
+}
+
+/* 3D Isometric cubes background - exact replica of reference design */
+.geometric-bg {
+  position: relative;
+  overflow: hidden;
+  background: #f7f7f7;
+  background-image:
+    /* Create isometric cube grid */
+    linear-gradient(30deg, transparent 48%, #d5d5d5 48%, #d5d5d5 52%, transparent 52%),
+    linear-gradient(-30deg, transparent 48%, #d5d5d5 48%, #d5d5d5 52%, transparent 52%),
+    linear-gradient(90deg, transparent 48%, #e0e0e0 48%, #e0e0e0 52%, transparent 52%);
+  background-size: 60px 104px, 60px 104px, 60px 60px;
+  background-position: 0 0, 0 0, 0 0;
+}
+
+.geometric-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.9) 0%, transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(245, 245, 245, 0.8) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(250, 250, 250, 0.7) 0%, transparent 30%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.geometric-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(247, 247, 247, 0.3) 0%, rgba(247, 247, 247, 0.8) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Card hover effects - subtle and elegant */
+.card-hover {
+  position: relative;
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transition: opacity 400ms ease;
+  pointer-events: none;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+}
+
+.card-hover:hover::after {
+  opacity: 1;
+}
+
+/* Isometric 3D cube decorations */
+.iso-cube {
+  position: relative;
+  width: 40px;
+  height: 46px;
+  transform-style: preserve-3d;
+  transform: rotateX(60deg) rotateZ(45deg);
+}
+
+.iso-cube-face {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.iso-cube-top {
+  transform: rotateX(90deg) translateZ(20px);
+  background: #ffffff;
+}
+
+.iso-cube-left {
+  transform: rotateY(-90deg) translateZ(20px);
+  background: #f9fafb;
+}
+
+.iso-cube-right {
+  transform: translateZ(20px);
+  background: #f3f4f6;
+}
+
+/* Glass effect for cards - ultra minimal */
+.glass-card {
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(229, 231, 235, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Minimal shadow system */
+.shadow-minimal {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-minimal-lg {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-minimal-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
 }

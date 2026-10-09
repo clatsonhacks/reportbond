@@ -20,17 +20,19 @@ const REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 export default function Maintainer() {
   const { address } = useAccount();
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 fade-in">
       <div>
         <h1 className="text-2xl font-semibold">Maintainer console</h1>
         <p className="mt-1 text-ink-muted">Open a pool for your repo, then review reports as they arrive.</p>
       </div>
       <WalletGate>
-        <section className="space-y-3">
+        <section className="space-y-3 slide-up">
           <h2 className="font-semibold">Your pools</h2>
           <PoolList creator={address?.toLowerCase()} />
         </section>
-        <CreatePool />
+        <div className="slide-up">
+          <CreatePool />
+        </div>
       </WalletGate>
     </div>
   );

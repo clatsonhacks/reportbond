@@ -15,18 +15,20 @@ export default function MyReports() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">My reports</h1>
+      <h1 className="fade-in text-2xl font-semibold">My reports</h1>
       <WalletGate>
-        <WithdrawCard />
+        <div className="slide-up">
+          <WithdrawCard />
+        </div>
         {isLoading ? (
           <Loading />
         ) : !data?.reports.length ? (
           <Empty>You haven&apos;t filed any reports from this wallet.</Empty>
         ) : (
-          <ul className="divide-y divide-line rounded-[8px] border border-line bg-card">
+          <ul className="slide-up divide-y divide-line rounded-[8px] border border-line bg-card">
             {data.reports.map((r) => (
               <li key={r.id}>
-                <Link href={`/report/${r.id}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface">
+                <Link href={`/report/${r.id}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface state-change">
                   <span>
                     <span className="num">#{r.id}</span> · {r.repoName ?? `Pool #${r.poolId}`}
                   </span>

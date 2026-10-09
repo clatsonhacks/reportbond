@@ -18,6 +18,8 @@ export type PoolView = {
   createdAt: number;
   createdTx: string;
   outcomes: Outcomes;
+  /** GitHub login that proved admin access to the repo, or null if unverified. */
+  verifiedBy: string | null;
 };
 
 export type TimelineEntryView = {

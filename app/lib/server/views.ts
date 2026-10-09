@@ -1,8 +1,8 @@
 import "server-only";
-import type { ChainData, PoolRow, PrivateData, ReportRow } from "./db";
+import type { ChainData, GithubData, PoolRow, PrivateData, ReportRow } from "./db";
 import type { PoolView, ReportView } from "../types";
 
-export function poolView(d: ChainData, priv: PrivateData, p: PoolRow): PoolView {
+export function poolView(d: ChainData, priv: PrivateData, p: PoolRow, gh?: GithubData): PoolView {
   const outcomes = { valid: 0, mistake: 0, slop: 0, refunded: 0 };
   for (const r of Object.values(d.reports)) {
     if (r.poolId !== p.id) continue;
@@ -16,6 +16,7 @@ export function poolView(d: ChainData, priv: PrivateData, p: PoolRow): PoolView 
     repoName: priv.repoNames[p.id] ?? null,
     available: (BigInt(p.fundedBalance) + BigInt(p.slashedBalance)).toString(),
     outcomes,
+    verifiedBy: gh?.verifiedPools[p.id]?.login ?? null,
   };
 }
 

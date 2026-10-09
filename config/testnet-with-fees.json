@@ -1,0 +1,10 @@
+{
+  "address": "0xc32213e7d1dc33Fc39EDA2F336cE42cE9f719995",
+  "deployBlock": 66345377,
+  "withFees": true,
+  "fees": {
+    "reportSubmission": "1%",
+    "poolCreation": "1 USDC",
+    "bountyPayout": "2%"
+  }
+}

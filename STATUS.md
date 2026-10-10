@@ -42,6 +42,19 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] One-click app creation at `/setup/github` (GitHub manifest flow), tested with `pnpm test:github-setup`
 - [ ] Create the real app: open `/setup/github` and click the button ([GITHUB_APP.md](GITHUB_APP.md))
 
+### Bounty rules and AI review (platform phases 3 and 4)
+
+- [x] Setup agent: reads the repository and the maintainer's answers, drafts a rulebook (scope, severity table with payout shares, what a valid report needs, slop signals)
+- [x] Rules editor: edit every field, publish versioned rules; reports are judged by the version in force
+- [x] `SECURITY.md` generated from the rules, with a link that opens GitHub's editor pre-filled (no write access needed)
+- [x] Live README badge at `/api/badge/<pool>`; published rules shown on the public pool page
+- [x] Grounding check: do the files, lines and functions a report cites exist? Deterministic, no model
+- [x] Triage and critic agents: verdict, confidence, severity and per-claim evidence, with a second reviewer. Recommend-only; the maintainer signs
+- [x] Injection attempts in a report are flagged and sent to the maintainer, not followed
+- [x] Every run is stored as an audit log
+- [x] Model: Groq `openai/gpt-oss-120b` (Claude also supported). Tested with the real model on a mock repo: a real bug came back valid, a fabricated report came back slop with the injection flagged
+- [ ] Not built yet: running a proof of concept in a sandbox, duplicate detection across reports, automatic triage when a report arrives (today the maintainer clicks "Review with AI"), auto-decisions and the appeal window (phase 6)
+
 ### Testing
 
 | Layer | Status |

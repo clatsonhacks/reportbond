@@ -213,8 +213,8 @@ Pilot with three to five real repositories that have private vulnerability repor
 |---|---|---|
 | 1 | GitHub App: install, verified repo to pool link, webhook intake, report tracker, unbonded detection. **Built**; needs the real app registered ([GITHUB_APP.md](GITHUB_APP.md)) | App registered by Clatson |
 | 2 | GitHub sign-in for reporters, wallet link | Phase 1 |
-| 3 | Setup agent and rulebook editor, `SECURITY.md` pull request, README badge | Phase 1 |
-| 4 | Triage agent (grounding check first) and critic agent, recommend-only | Phases 1, 3 |
+| 3 | Setup agent and rulebook editor, `SECURITY.md`, README badge. **Built.** `SECURITY.md` is a pre-filled GitHub editor link, not a pull request, so the app needs no write access to code | Phase 1 |
+| 4 | Triage agent (grounding check first) and critic agent, recommend-only. **Built**, without the proof-of-concept sandbox and duplicate check | Phases 1, 3 |
 | 5 | Maintainer review queue with evidence; accept or close on GitHub | Phase 4 |
 | 6 | Appeal window, notifications, contract `autoSigner`, auto-decision threshold | Phases 4, 5 |
 | 7 | Browser extension | Phases 4, 5 |

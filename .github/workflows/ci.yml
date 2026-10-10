@@ -40,6 +40,10 @@ jobs:
       - run: pnpm build
         env:
           NETWORK: testnet
+      - name: Grounding check tests
+        run: pnpm test:grounding
+      - name: Agent tests (mock repository, mock model)
+        run: pnpm test:agents --mock
       - name: Storage tests (files)
         run: pnpm test:db
         env:

@@ -67,7 +67,10 @@ The end-to-end script (`app/scripts/e2e.ts`) runs the same scenarios on anvil an
 
 - [ ] **Scenario F: plain browser wallet.** Go through the report flow with MetaMask or Rabby on testnet. Check the deposit shows as `5.00 USDC`, not a tiny ETH amount.
 - [ ] **Scenario G: smart-wallet signer.** Sign a verdict with a passkey or smart wallet. If it fails, fall back to a normal wallet and note it in the README.
-- [ ] **Hosting.** Vercel project `reportbond` (team "Clatson's projects") is created, linked to this repo with root `app`, and has `NETWORK`, `DATABASE_URL` (Neon), `RELAYER_PRIVATE_KEY`, `CRON_SECRET` and `SETUP_SECRET` set. Commits must be authored by the Vercel account owner (`clatsonhacks`), or Vercel blocks the deploy. See the [deployment guide](README.md#deploying-hosted-testnet).
+- [x] **Hosting.** Live at **https://reportbond-nine.vercel.app** (Vercel project `reportbond`, root `app`, Neon Postgres, testnet). Pushes to `main` deploy automatically, but only when the commit author is the Vercel account owner (`clatsonhacks`); other authors are blocked on the free plan.
+- [ ] **After hosting:**
+  - Create the GitHub App for the live site at `/setup/github` (needs `SETUP_SECRET`), add its six values to Vercel, redeploy, then remove `SETUP_SECRET`.
+  - Add repo secrets `APP_URL` (`https://reportbond-nine.vercel.app`) and `CRON_SECRET` so the hourly keeper workflow runs.
   - Create a Postgres database (Neon or Supabase).
   - Create the Vercel project with Root Directory `app`, and set `NETWORK`, `DATABASE_URL`, `RELAYER_PRIVATE_KEY` and `CRON_SECRET`.
   - Add the `APP_URL` and `CRON_SECRET` repo secrets so the hourly keeper runs.

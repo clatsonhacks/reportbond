@@ -63,8 +63,13 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     if (client_secret !== process.env.GITHUB_CLIENT_SECRET) return send(200, { error_description: "bad client" });
     return send(200, { access_token: `user-${code}` });
   }
-  if (url.pathname === "/user") return auth?.startsWith("Bearer user-") ? send(200, { login: "Octo-Maint" }) : send(401, {});
-  if (url.pathname === "/user/installations") return send(200, { installations: [{ id: INSTALLATION }] });
+  if (url.pathname === "/user") {
+    if (!auth?.startsWith("Bearer user-")) return send(401, {});
+    return send(200, { login: auth === "Bearer user-reporter" ? "Researcher-1" : "Octo-Maint" });
+  }
+  if (url.pathname === "/user/installations") {
+    return send(200, { installations: auth === "Bearer user-reporter" ? [] : [{ id: INSTALLATION }] });
+  }
   if (url.pathname === `/user/installations/${INSTALLATION}/repositories`) {
     return send(200, {
       repositories: [
@@ -346,6 +351,46 @@ async function main() {
   const rC = await deposit(C);
   reports = await list();
   check("deposit links the GitHub report to the on-chain report", find(A)?.bond === "bonded" && find(A)?.reportId === Number(rA), find(A));
+
+  console.log("Reporter identity");
+  type Who = { ghsa: string; reporterMatch: string; depositorLogin: string | null; depositor: string | null };
+  const who = async (id: string) => ((await call(`/api/github/reports?pool=${poolId}`, { headers: auth })).body.reports as Who[]).find((r) => r.ghsa === id);
+  const before = await who(A);
+  check("before linking, the depositor is an unlinked wallet", before?.reporterMatch === "unknown" && before?.depositor === reporter.address.toLowerCase(), before);
+
+  const evil = await call("/api/github/connect?mode=signin&next=//evil.example/x");
+  const evilState = new URL(evil.headers.get("location")!).searchParams.get("state")!;
+  const evilCookies = evil.headers.getSetCookie().map((c) => c.split(";")[0]).filter((c) => !c.endsWith("=")).join("; ");
+  const evilBack = await call(`/api/github/callback?code=reporter&state=${evilState}`, { cookie: evilCookies });
+  check("sign-in never redirects off-site", new URL(evilBack.headers.get("location")!).pathname === "/maintainer", evilBack.headers.get("location"));
+
+  const next = `/pool/${poolId}/report`;
+  const rc = await call(`/api/github/connect?mode=signin&next=${encodeURIComponent(next)}`);
+  const rState = new URL(rc.headers.get("location")!).searchParams.get("state")!;
+  const rCookies = rc.headers.getSetCookie().map((c) => c.split(";")[0]).filter((c) => !c.endsWith("=")).join("; ");
+  const rcb = await call(`/api/github/callback?code=reporter&state=${rState}`, { cookie: rCookies });
+  const backTo = new URL(rcb.headers.get("location")!);
+  check("a reporter signs in and returns to the report flow", backTo.pathname === next && backTo.searchParams.get("github") === "connected", rcb.headers.get("location"));
+  const reporterSession = cookieFrom(rcb.headers, "rb_gh")!;
+  const rs = await call("/api/github/session", { cookie: reporterSession });
+  check("the reporter's session has their login and no repositories", rs.body.login === "researcher-1" && (rs.body.repos as string[]).length === 0, rs.body);
+
+  const reporterAuth = await bearer(reporter);
+  check("linking needs a GitHub session", (await call("/api/github/link", { json: {}, headers: reporterAuth })).status === 401);
+  check("linking needs a wallet signature", (await call("/api/github/link", { json: {}, cookie: reporterSession })).status === 401);
+  const linked = await call("/api/github/link", { json: {}, cookie: reporterSession, headers: reporterAuth });
+  check("with both, the wallet is linked to the GitHub account", linked.status === 200 && linked.body.login === "researcher-1", linked.body);
+  check("the wallet can read its own link", (await call("/api/github/link", { headers: reporterAuth })).body.login === "researcher-1");
+  check("another wallet has no link", (await call("/api/github/link", { headers: await bearer(stranger) })).body.login === null);
+  const matched = await who(A);
+  check("the tracker shows the deposit came from the account that filed the report", matched?.reporterMatch === "match" && matched?.depositorLogin === "researcher-1", matched);
+
+  // The same wallet linked to a different GitHub account than the filer is flagged.
+  await call("/api/github/link", { json: {}, cookie: session, headers: reporterAuth });
+  const mismatched = await who(A);
+  check("a deposit from a wallet linked to someone else is flagged", mismatched?.reporterMatch === "mismatch" && mismatched?.depositorLogin === "octo-maint", mismatched);
+  const unlink = await call("/api/github/link", { method: "DELETE", headers: reporterAuth });
+  check("unlinking returns it to unknown", unlink.status === 200 && (await who(A))?.reporterMatch === "unknown");
 
   console.log("Verdicts written back to GitHub");
   check("Valid verdict relayed", Boolean((await relay(rA, Verdict.Valid, parseUsdc("1"))).body.hash));

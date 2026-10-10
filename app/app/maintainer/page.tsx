@@ -4,16 +4,16 @@ import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { isAddress, parseEventLogs, type Address } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
-import { GithubConnect } from "@/components/GithubConnect";
+import { GithubConnect, GithubSignInButton } from "@/components/GithubConnect";
 import { PoolList } from "@/components/PoolList";
 import { TxStatus } from "@/components/TxStatus";
-import { Button, Card, Notice } from "@/components/ui";
+import { Button, buttonStyles, Card, Notice } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
 import { post } from "@/lib/api";
 import { repoIdOf } from "@/lib/advisory";
 import { reportBond } from "@/lib/contract";
 import { formatUsdc, parseUsdc } from "@/lib/format";
-import { useGithubSession } from "@/lib/github";
+import { connectHref, useGithubSession } from "@/lib/github";
 import { config } from "@/lib/network";
 import { useSignIn } from "@/lib/useSignIn";
 import { useTx } from "@/lib/useTx";
@@ -71,6 +71,7 @@ function CreatePool() {
     const verdictSigner = (signer.trim() || address) as Address;
     let values: { dep: bigint; max: bigint; fund: bigint; timeout: bigint };
     try {
+      if (!repo.trim()) throw new Error("Choose a repository first: sign in with GitHub, or type one.");
       if (!REPO_RE.test(repo.trim())) throw new Error("Repo must look like owner/repo");
       if (!isAddress(verdictSigner)) throw new Error("Verdict signer isn't a valid address");
       const t = Number(timeoutValue);
@@ -120,10 +121,12 @@ function CreatePool() {
     <Card>
       <h2 className="font-semibold">Open a pool</h2>
       <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="space-y-1 sm:col-span-2">
-          <span className="text-sm font-medium">GitHub repo</span>
-          {ghRepos.length > 0 && !manualRepo ? (
-            <select className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} required>
+        <div className="space-y-2 sm:col-span-2">
+          <span className="text-sm font-medium">GitHub repository</span>
+          {manualRepo ? (
+            <input className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" aria-label="GitHub repository" required />
+          ) : ghRepos.length > 0 ? (
+            <select className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} aria-label="GitHub repository" required>
               <option value="" disabled>
                 Choose a repository you administer
               </option>
@@ -133,31 +136,35 @@ function CreatePool() {
                 </option>
               ))}
             </select>
+          ) : github.data?.connected ? (
+            <div>
+              <a className={buttonStyles.secondary} href={connectHref("install")}>
+                Choose repositories on GitHub
+              </a>
+            </div>
           ) : (
-            <input className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" required />
+            <div>
+              <GithubSignInButton />
+            </div>
           )}
           <span className="block text-xs text-ink-muted">
-            {ghRepos.length > 0 ? (
-              <>
-                {manualRepo
-                  ? "Pools for repos not picked from GitHub show as unverified."
-                  : "Verified through GitHub: reporters see who maintains this pool."}{" "}
-                <button
-                  type="button"
-                  className="underline underline-offset-2"
-                  onClick={() => {
-                    setManualRepo(!manualRepo);
-                    setRepo("");
-                  }}
-                >
-                  {manualRepo ? "Pick from GitHub instead" : "Type a repo instead"}
-                </button>
-              </>
-            ) : (
-              "Connect GitHub above to pick a repo you administer and get a verified badge."
-            )}
+            {manualRepo
+              ? "A typed repo shows as unverified: reporters can't tell that you maintain it."
+              : ghRepos.length > 0
+                ? "Verified through GitHub: reporters see who maintains this pool."
+                : "Sign in to pick your repository from a list. Nothing to type or paste."}{" "}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => {
+                setManualRepo(!manualRepo);
+                setRepo("");
+              }}
+            >
+              {manualRepo ? "Use GitHub instead" : "Type a repo instead"}
+            </button>
           </span>
-        </label>
+        </div>
         <label className="space-y-1">
           <span className="text-sm font-medium">Deposit (USDC)</span>
           <input className={`${field} num`} inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} required />

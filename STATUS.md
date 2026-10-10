@@ -50,10 +50,21 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Live README badge at `/api/badge/<pool>`; published rules shown on the public pool page
 - [x] Grounding check: do the files, lines and functions a report cites exist? Deterministic, no model
 - [x] Triage and critic agents: verdict, confidence, severity and per-claim evidence, with a second reviewer. Recommend-only; the maintainer signs
+- [x] Tools: the triage agent investigates with read-only tools (`list_files`, `read_file`, `search_code`, `load_skill`), scoped to the one repository, in a bounded loop. What it read is stored and shown
+- [x] Skills: seven review playbooks (memory safety, injection, access control, web, crypto, denial of service, smart contracts). The best match is chosen from the report and given to the reviewer up front
+- [x] Rate-limit aware: the client paces itself to the AI plan and shrinks the review on a small plan (Groq's free tier allows 8,000 tokens a minute, so a review there takes a few minutes and reads less)
+- [x] Tried on this repository with the real model (`pnpm try:agents clatsonhacks/reportbond`): a wrong-but-honest reentrancy report came back *mistake*, a fabricated one *slop*
 - [x] Injection attempts in a report are flagged and sent to the maintainer, not followed
 - [x] Every run is stored as an audit log
 - [x] Model: Groq `openai/gpt-oss-120b` (Claude also supported). Tested with the real model on a mock repo: a real bug came back valid, a fabricated report came back slop with the injection flagged
 - [ ] Not built yet: running a proof of concept in a sandbox, duplicate detection across reports, automatic triage when a report arrives (today the maintainer clicks "Review with AI"), auto-decisions and the appeal window (phase 6)
+
+### Reporter identity (platform phase 2)
+
+- [x] Reporters sign in with GitHub from the report flow and return to it
+- [x] A wallet is linked to a GitHub account only with both proofs at once: a GitHub session and a wallet signature
+- [x] The maintainer's tracker shows, per report, whether the deposit came from the account that filed it, from a wallet linked to someone else, or from an unlinked wallet
+- [ ] Not enforced: linking is optional, and a mismatch is shown to the maintainer, not blocked
 
 ### Testing
 

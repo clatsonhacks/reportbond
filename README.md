@@ -91,3 +91,18 @@ cd app && NETWORK=local pnpm e2e     # scenarios A–E through the API, relayer 
 5. With the `TEST_*` wallets in `.env` funded: `cd app && pnpm e2e` runs scenarios A–E on testnet (about 6 minutes).
 
 After changing the contract: `forge build`, then `pnpm sync-abi` in `app/`.
+
+## Tests
+
+Run from `app/`:
+
+| Command | What it covers | Needs |
+|---|---|---|
+| `pnpm test:grounding` | The check that a report's cited files, lines and functions exist | nothing |
+| `pnpm test:agents --mock` | Setup, triage and critic agents, their tools and playbooks, on a mock repo | nothing |
+| `pnpm test:agents` | The same with the real model | `GROQ_API_KEY` or `ANTHROPIC_API_KEY` |
+| `pnpm try:agents owner/repo [report.md ...]` | The agents on a real repo the GitHub App can read | GitHub App installed, a model key |
+| `pnpm test:db` | Storage, on files or Postgres | `NETWORK=local` |
+| `pnpm test:github-setup` | One-click GitHub App setup against a mock GitHub | a dev server pointed at the mock |
+| `pnpm test:github` | GitHub connect, verified pools, webhooks, reporter identity, rules and AI review | anvil, a dev server pointed at the mock |
+| `pnpm e2e` | Deposit, verdict, refund and withdraw scenarios | anvil or testnet wallets |

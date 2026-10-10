@@ -29,12 +29,12 @@ export function GithubMark({ className = "h-6 w-6" }: { className?: string }) {
  * The one button a maintainer needs. Signs in with GitHub when the site's GitHub App exists;
  * otherwise it leads the site owner to the one-time setup.
  */
-export function GithubSignInButton({ label = "Sign in with GitHub" }: { label?: string }) {
+export function GithubSignInButton({ label = "Sign in with GitHub", next }: { label?: string; next?: string }) {
   const session = useGithubSession();
   const configured = session.data?.configured;
   return (
     <a
-      href={configured ? connectHref("signin") : "/setup/github"}
+      href={configured ? connectHref("signin", next) : "/setup/github"}
       className="state-change inline-flex items-center gap-3 rounded-xl border border-line bg-card px-5 py-3 text-base font-medium text-ink shadow-sm hover:border-accent hover:shadow-md"
     >
       <GithubMark />

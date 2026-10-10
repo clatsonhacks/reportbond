@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import { GithubIdentity } from "@/components/GithubIdentity";
 import { StatusPill } from "@/components/StatusPill";
 import { Amount, Empty, Loading } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
@@ -19,6 +20,9 @@ export default function MyReports() {
       <WalletGate>
         <div className="slide-up">
           <WithdrawCard />
+          <div className="mt-4">
+            <GithubIdentity />
+          </div>
         </div>
         {isLoading ? (
           <Loading />

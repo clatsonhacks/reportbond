@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { parseEventLogs, type Hex } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
+import { GithubIdentity } from "@/components/GithubIdentity";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, ButtonLink, Card, Loading, Notice } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
@@ -140,6 +141,7 @@ export default function ReportFlow() {
             </p>
           )}
           <WalletGate need={deposit}>
+            <GithubIdentity />
             <div className="flex flex-wrap gap-3">
               <Button onClick={pay} disabled={tx.busy}>
                 Pay {formatUsdc(deposit)} deposit

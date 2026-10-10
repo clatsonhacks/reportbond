@@ -107,7 +107,17 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (url.pathname === "/search/code") return send(200, { items: [] });
   // The model (Groq-compatible), answering by which schema was asked for.
   if (req.method === "POST" && url.pathname === "/chat/completions") {
-    const name = JSON.parse(body).response_format?.json_schema?.name as string;
+    const parsed = JSON.parse(body);
+    // An investigation request (tools, no schema): read the cited file once, then write findings.
+    if (parsed.tools && !parsed.response_format) {
+      const done = parsed.messages.some((m: { role: string }) => m.role === "tool");
+      modelCalls.push(done ? "findings" : "tool_calls");
+      const message = done
+        ? { content: "read_name copies without a length check." }
+        : { content: null, tool_calls: [{ id: "t1", type: "function", function: { name: "read_file", arguments: JSON.stringify({ path: "src/app.c" }) } }] };
+      return send(200, { model: "mock-model", choices: [{ finish_reason: done ? "stop" : "tool_calls", message }] });
+    }
+    const name = parsed.response_format?.json_schema?.name as string;
     modelCalls.push(name);
     const answer =
       name === "rulebook"
@@ -412,6 +422,9 @@ async function main() {
     run?.recommendation?.needsHuman === true && run?.recommendation?.suggestedBountyPercent === 50,
     run?.recommendation,
   );
+  const steps = (tri.body.run as { investigation?: { steps: { tool: string; ok: boolean }[] } })?.investigation?.steps ?? [];
+  check("the reviewer read the cited file with its tools", steps.some((x) => x.tool === "read_file" && x.ok), steps);
+  check("a review playbook was chosen for the report", steps[0]?.tool === "load_skill" && steps[0].ok, steps);
   check(
     "both reviewers were called once each",
     modelCalls.filter((c) => c === "triage").length === 1 && modelCalls.filter((c) => c === "triage_review").length === 1,

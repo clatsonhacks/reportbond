@@ -144,6 +144,8 @@ const github = createServer((req, res) => {
 // ----------------------------------------------------------------- mock model
 
 const aiCalls: { name: string; system: string; user: string }[] = [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw request bodies, inspected loosely
+const toolRequests: any[] = [];
 const CANNED_RULES = {
   summary: "acme/parser is an HTTP header parser in C. This bounty covers memory-safety and parsing bugs reachable from untrusted input.",
   inScope: ["src/parser/ (header parsing)", "src/main.c"],
@@ -162,7 +164,29 @@ const ai = createServer(async (req, res) => {
   for await (const c of req) raw += c;
   const body = JSON.parse(raw);
   const name = body.response_format?.json_schema?.name as string;
+  // The client's one-message probe for the plan's rate limit.
+  if (body.messages.length < 2) {
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(JSON.stringify({ model: "mock-model", choices: [{ finish_reason: "stop", message: { content: "ok" } }] }));
+  }
   const [system, user] = [body.messages[0].content as string, body.messages[1].content as string];
+  // Investigation requests carry tools and no response_format: call tools first, then write findings.
+  if (body.tools && !body.response_format) {
+    toolRequests.push(body);
+    const fakeReport = user.includes("token_manager.cpp");
+    const hasResults = body.messages.some((m: { role: string }) => m.role === "tool");
+    const call = (id: string, name: string, args: unknown) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } });
+    const message = hasResults
+      ? { content: fakeReport ? "The cited files and functions do not exist." : "name_len is unchecked before copy_field; parse_header is reachable from main." }
+      : {
+          content: null,
+          tool_calls: fakeReport
+            ? [call("c1", "read_file", { path: "src/auth/token_manager.cpp" }), call("c2", "read_file", { path: "../../etc/passwd" })]
+            : [call("c1", "load_skill", { name: "memory-safety" }), call("c2", "read_file", { path: "src/parser/header.c" }), call("c3", "search_code", { query: "parse_header" }), call("c4", "list_files", { directory: "src" })],
+        };
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(JSON.stringify({ model: "mock-model", choices: [{ finish_reason: hasResults ? "stop" : "tool_calls", message }] }));
+  }
   aiCalls.push({ name, system, user });
   const fake = user.includes("token_manager.cpp");
   const answer =
@@ -216,6 +240,8 @@ async function main() {
   check("grounding: every cited file, line and function exists", real.grounding.missingShare === 0, real.grounding);
   check("verdict is valid (not slop)", real.triage?.verdict === "valid", real.triage);
   check("no injection flagged", real.triage?.injectionSuspected === false && real.critic?.injectionSuspected === false);
+  check("the reviewer investigated with tools before deciding", (real.investigation?.steps.length ?? 0) > 0 && Boolean(real.investigation?.notes), real.investigation);
+  check("it read the code the report points at", real.investigation?.steps.some((s) => s.tool === "read_file" && s.ok) === true, real.investigation?.steps);
   check("critic reviewed it", real.critic !== null, real.critic);
   check("a valid recommendation always goes to the maintainer", real.recommendation?.needsHuman === true, real.recommendation);
   check("suggested bounty comes from the rulebook's severity table", real.recommendation?.suggestedBountyPercent === rules.severity.find((s) => s.level === real.triage?.severity)?.payoutPercent, real.recommendation);
@@ -234,12 +260,28 @@ async function main() {
   check("both runs are stored with grounding and both reviews", stored[REAL_GHSA]?.runs.length === 1 && stored[FAKE_GHSA]?.runs.length === 1 && stored[FAKE_GHSA].runs[0].critic !== null);
 
   if (MOCK) {
+    console.log("Tools (mock only)");
+    const realSteps = real.investigation?.steps ?? [];
+    check("load_skill, read_file, search_code and list_files all ran", ["load_skill", "read_file", "search_code", "list_files"].every((t) => realSteps.some((s) => s.tool === t && s.ok)), realSteps);
+    check("the memory-safety playbook was chosen automatically from the report", realSteps[0]?.tool === "load_skill" && realSteps[0].input.includes("memory-safety") && realSteps[0].note.includes("automatically"), realSteps[0]);
+    check("a repeated identical tool call is answered without running again", realSteps.filter((s) => s.tool === "load_skill" && s.input.includes("memory-safety")).length === 1, realSteps.map((s) => `${s.tool} ${s.input}`));
+    check("the playbook is in the reviewer's prompt up front", toolRequests.some((b) => b.messages[1].content.includes("<playbook>") && b.messages[1].content.includes("Reviewing a memory-safety report")));
+    const fakeSteps = fake.investigation?.steps ?? [];
+    check("reading a file that isn't in the repo fails without ending the review", fakeSteps.some((s) => s.input.includes("token_manager.cpp") && !s.ok) && fake.triage !== null, fakeSteps);
+    check("a path outside the repository is refused", fakeSteps.some((s) => s.input.includes("etc/passwd") && !s.ok), fakeSteps);
+    const followUp = toolRequests.find((b) => b.messages.some((m: { role: string }) => m.role === "tool") && b.messages[1].content.includes("header.c:20"));
+    const toolTexts = (followUp?.messages ?? []).filter((m: { role: string }) => m.role === "tool").map((m: { content: string }) => m.content);
+    check("asking again for the same playbook is answered with a short note", toolTexts.some((t: string) => t.includes("already made this exact call")), toolTexts.map((t: string) => t.slice(0, 40)));
+    check("file contents come back with line numbers", toolTexts.some((t: string) => t.includes("src/parser/header.c, lines 1-") && t.includes("memcpy(dst, src, len)")));
+    check("four tools are offered, all with schemas", toolRequests[0]?.tools.length === 4 && toolRequests[0].tools.every((t: { function: { parameters: { type: string } } }) => t.function.parameters.type === "object"));
+
     console.log("Prompt construction (mock only)");
     const triageCall = aiCalls.find((c) => c.name === "triage" && c.user.includes("token_manager.cpp"))!;
     check("the report is inside a <report> data block", /<report>[\s\S]*SYSTEM NOTE TO AI REVIEWER[\s\S]*<\/report>/.test(triageCall.user));
     check("the injection text is not in the system prompt", !triageCall.system.includes("SYSTEM NOTE TO AI REVIEWER"));
     check("the model is given the grounding result and real code", triageCall.user.includes("do not exist in the repository") && aiCalls.some((c) => c.user.includes("memcpy(dst, src, len)")));
-    check("the critic sees the first review", aiCalls.some((c) => c.name === "triage_review" && c.user.includes("<first_review>")));
+    check("the critic sees the first review and what was read", aiCalls.some((c) => c.name === "triage_review" && c.user.includes("<first_review>") && c.user.includes("read_file")));
+    check("the verdict step is given the findings", aiCalls.some((c) => c.name === "triage" && c.user.includes("<findings>")));
   }
 
   if (!MOCK) {
@@ -247,6 +289,8 @@ async function main() {
     console.log("  real:", real.triage?.verdict, real.triage?.confidence, real.triage?.severity, "|", real.triage?.summary);
     console.log("  fake:", fake.triage?.verdict, fake.triage?.confidence, "|", fake.triage?.summary);
     console.log("  critic on fake:", JSON.stringify(fake.critic));
+    console.log("  tools used on real:", real.investigation?.steps.map((s) => `${s.tool}${s.ok ? "" : "!"}`).join(", "));
+    console.log("  tools used on fake:", fake.investigation?.steps.map((s) => `${s.tool}${s.ok ? "" : "!"}`).join(", "));
   }
 
   github.close();

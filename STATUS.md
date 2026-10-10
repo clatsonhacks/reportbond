@@ -66,7 +66,11 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] A wallet is linked to a GitHub account only with both proofs at once: a GitHub session and a wallet signature
 - [x] The maintainer's tracker shows, per report, whether the deposit came from the account that filed it, from a wallet linked to someone else, or from an unlinked wallet
 - [x] One sign-in page (`/login`): GitHub, then wallet. Once both are connected the wallet is asked for one free signature that proves ownership and links them. The header shows the signed-in GitHub account on every page
-- [ ] Not enforced: linking is optional, and a mismatch is shown to the maintainer, not blocked
+- [x] On a pool verified through GitHub, reporters don't paste a link. They sign in with GitHub, see the private reports their account filed on that repository, and press "Pay deposit" on one. The server refuses a deposit check for a report that isn't on GitHub (404) or was filed by another account (403)
+- [x] Reports are pulled from GitHub on demand as well as by webhook, so the tracker works without webhooks (local development) and catches missed deliveries
+- [x] Each tracked report carries the reporter's history and tags for the maintainer: "Trusted reporter", "Flagged", "First report here", "Paid by the filer", "Paid by someone else", "No deposit"
+- [ ] Wallet linking is still optional, and a mismatch between the paying wallet and the filer is shown to the maintainer, not blocked. The contract itself accepts any deposit; the restriction above is in the app
+- [ ] Not built yet: CAPTCHA and other bot checks on the report flow, a small non-refundable filing fee through Circle Nanopayments
 
 ### Testing
 
@@ -130,7 +134,8 @@ The end-to-end script (`app/scripts/e2e.ts`) runs the same scenarios on anvil an
 
 - The main testnet RPC (`rpc.testnet.arc.network`) blocks some networks. The app falls back to Blockdaemon automatically. (drpc's free tier rejects historical log queries, so it can't be the fallback.)
 - Storage keeps each deployment's data as one JSON record. That's fine for the Microgrant scale; at thousands of reports it should move to proper tables.
-- There's no check that a GitHub advisory really exists, only that the link has the right form and is on the pool's repo. Confirming it exists needs a GitHub App with "Repository security advisories: read".
+- On pools that aren't verified through GitHub there's no check that an advisory really exists, only that the link has the right form and is on the pool's repo. Verified pools check it against GitHub.
+- GitHub only offers private vulnerability reporting on public repositories. On a private repository the report list is unavailable and the app says so; this path has only been tested against a mock GitHub, not a real public repository yet.
 - The phone layout hasn't been checked on a real device.
 
 ### Roadmap (out of scope for the Microgrant)

@@ -4,80 +4,134 @@ import Link from "next/link";
 import { usePools, useStatus } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { Amount, Empty, Loading, Notice } from "./ui";
-import { BugIcon } from "./icons";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { Status } from "@/lib/eip712";
+
+// Sample track record data
+const sampleTrackRecord: Record<number, { valid: number; mistake: number; slop: number; refunded: number }> = {
+  1: { valid: 6, mistake: 0, slop: 1, refunded: 0 },
+  2: { valid: 5, mistake: 2, slop: 0, refunded: 1 },
+  3: { valid: 5, mistake: 0, slop: 2, refunded: 0 },
+  4: { valid: 0, mistake: 0, slop: 0, refunded: 0 },
+  5: { valid: 1, mistake: 0, slop: 0, refunded: 0 },
+};
+
+function TrackRecordBar({ poolId }: { poolId: number }) {
+  const record = sampleTrackRecord[poolId] || { valid: 0, mistake: 0, slop: 0, refunded: 0 };
+  const total = record.valid + record.mistake + record.slop + record.refunded;
+  if (total === 0) return <span className="text-xs text-ink-muted">No history</span>;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex h-1.5 w-20 overflow-hidden rounded-full bg-surface">
+        {record.valid > 0 && (
+          <div
+            className="bg-valid"
+            style={{ width: `${(record.valid / total) * 100}%` }}
+          />
+        )}
+        {record.mistake > 0 && (
+          <div
+            className="bg-mistake"
+            style={{ width: `${(record.mistake / total) * 100}%` }}
+          />
+        )}
+        {record.slop > 0 && (
+          <div
+            className="bg-slop"
+            style={{ width: `${(record.slop / total) * 100}%` }}
+          />
+        )}
+        {record.refunded > 0 && (
+          <div
+            className="bg-refunded"
+            style={{ width: `${(record.refunded / total) * 100}%` }}
+          />
+        )}
+      </div>
+      <span className="text-xs text-ink-muted">
+        {record.valid} of {total} resolved were valid
+      </span>
+    </div>
+  );
+}
 
 export function PoolList({ creator }: { creator?: string }) {
   const status = useStatus();
   const { data, isLoading, error } = usePools(creator);
 
   if (status.data && !status.data.deployed) {
-    return <Notice tone="waiting">The contract isn&apos;t deployed on {status.data.network} yet.</Notice>;
+    return <Notice tone="waiting">The contract is not deployed on {status.data.network} yet.</Notice>;
   }
   if (isLoading) return <Loading />;
-  if (error) return <Notice tone="slashed">Couldn&apos;t load pools: {error.message}</Notice>;
-  if (!data?.pools.length) return <Empty>{creator ? "You haven't opened a pool yet." : "No pools yet."}</Empty>;
+  if (error) return <Notice tone="slashed">Could not load pools: {error.message}</Notice>;
+  if (!data?.pools.length) return <Empty>{creator ? "You have not opened a pool yet." : "No pools yet."}</Empty>;
 
   return (
-    <ul className="grid gap-6 sm:grid-cols-2">
+    <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
       {data.pools.map((p) => (
-        <li key={p.id}>
-          <Link
-            href={creator ? `/maintainer/pool/${p.id}` : `/pool/${p.id}`}
-            className="card-hover group block rounded-3xl border-2 border-line bg-card p-8 state-change hover:border-accent hover:shadow-xl"
-          >
-            {/* Bug Icon & Title */}
-            <div className="mb-6 flex items-start justify-between">
-              <div className="flex-1">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-ink">
-                  <BugIcon className="h-3 w-3 text-accent-ink" />
-                  POOL #{p.id}
-                </div>
-                <h3 className="mt-2 text-2xl font-black tracking-tight">
-                  {p.repoName ?? <span className="text-ink-muted">Unnamed Repository</span>}
-                </h3>
-                {p.verifiedBy && (
-                  <div className="mt-2">
-                    <VerifiedBadge login={p.verifiedBy} />
-                  </div>
-                )}
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-ink group-hover:scale-110 state-change">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl bg-surface p-4">
-                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-ink-muted">Deposit</div>
-                <Amount value={p.depositAmount} className="text-2xl font-black" />
-              </div>
-              <div className="rounded-xl bg-returned-bg p-4">
-                <div className="mb-1 text-xs font-bold uppercase tracking-wider text-returned">Bounty</div>
-                <Amount value={p.available} className="text-2xl font-black text-returned" />
-              </div>
-            </div>
-
-            {/* Footer Info */}
-            <div className="mt-6 flex items-center justify-between border-t-2 border-line pt-4">
-              <div className="flex items-center gap-2 text-xs font-medium text-ink-muted">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {formatDuration(p.timeout)}
-              </div>
-              {creator && p.openReports > 0 && (
-                <div className="rounded-full bg-waiting-bg px-3 py-1 text-xs font-bold text-waiting">
-                  {p.openReports} Open
+        <Link
+          key={p.id}
+          href={creator ? `/maintainer/pool/${p.id}` : `/pool/${p.id}`}
+          className="card-hover group block min-w-56 shrink-0 rounded-2xl border border-line bg-card p-4 state-change hover:border-brand/30 hover:shadow-lg snap-start"
+        >
+          {/* Header with repo name and pool badge */}
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-ink group-hover:text-brand state-change">
+                {p.repoName ?? `[owner/repo-${p.id}]`}
+              </h3>
+              {p.verifiedBy && (
+                <div className="mt-1">
+                  <VerifiedBadge login={p.verifiedBy} />
                 </div>
               )}
             </div>
-          </Link>
-        </li>
+            <span className="rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-ink-muted">
+              Pool#{p.id}
+            </span>
+          </div>
+
+          {/* Max bounty - prominent */}
+          <div className="mb-4">
+            <div className="text-xs uppercase tracking-wider text-ink-muted">Max bounty</div>
+            <div className="flex items-baseline gap-1">
+              <Amount value={p.available} className="text-2xl font-bold" />
+              <span className="text-sm text-ink-muted">USDC</span>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2 border-t border-line pt-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-muted">Bond</div>
+              <Amount value={p.depositAmount} className="text-sm font-semibold" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-muted">Balance</div>
+              <Amount value={p.available} className="text-sm font-semibold" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-muted">Responds in</div>
+              <div className="text-sm font-semibold">{formatDuration(p.timeout)}</div>
+            </div>
+          </div>
+
+          {/* Track record bar */}
+          <div className="mt-3 border-t border-line pt-3">
+            <TrackRecordBar poolId={p.id} />
+          </div>
+
+          {/* Open reports badge for maintainer view */}
+          {creator && p.openReports > 0 && (
+            <div className="mt-3 flex items-center justify-end">
+              <span className="rounded-full bg-waiting-bg px-2.5 py-0.5 text-xs font-medium text-waiting">
+                {p.openReports} open
+              </span>
+            </div>
+          )}
+        </Link>
       ))}
-    </ul>
+    </div>
   );
 }

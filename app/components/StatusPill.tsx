@@ -44,14 +44,16 @@ function QuestionIcon() {
   );
 }
 
-// Never colour alone: every status has a label and an icon too.
+// Never colour alone: every status has a label, icon, and distinct shape.
+// Waiting = Slate (hollow), Acknowledged = Blue (dot), Valid = Green (filled)
+// Mistake = Amber (filled), Slop = Red (tinted ×), Refunded = Violet (dashed)
 const styles: Record<number, { label: string; Icon: () => ReactElement; cls: string; border: string }> = {
-  [Status.Submitted]: { label: "Waiting", Icon: WaitingIcon, cls: "bg-waiting-bg text-waiting", border: "border-waiting/30" },
-  [Status.Acknowledged]: { label: "Acknowledged", Icon: WaitingIcon, cls: "bg-waiting-bg text-waiting", border: "border-waiting/30" },
-  [Status.Valid]: { label: "Valid", Icon: CheckIcon, cls: "bg-returned-bg text-returned", border: "border-returned/30" },
-  [Status.Mistake]: { label: "Honest mistake", Icon: ReturnIcon, cls: "bg-returned-bg text-returned", border: "border-returned/30" },
-  [Status.Slop]: { label: "Slop", Icon: XIcon, cls: "bg-slashed-bg text-slashed", border: "border-slashed/30" },
-  [Status.Refunded]: { label: "Refunded", Icon: ReturnIcon, cls: "bg-returned-bg text-returned", border: "border-returned/30" },
+  [Status.Submitted]: { label: "Waiting", Icon: WaitingIcon, cls: "bg-waiting-bg text-waiting-text", border: "border-waiting/30" },
+  [Status.Acknowledged]: { label: "Acknowledged", Icon: WaitingIcon, cls: "bg-acknowledged-bg text-acknowledged-text", border: "border-acknowledged/30" },
+  [Status.Valid]: { label: "Valid", Icon: CheckIcon, cls: "bg-valid-bg text-valid-text", border: "border-valid/30" },
+  [Status.Mistake]: { label: "Honest mistake", Icon: ReturnIcon, cls: "bg-mistake-bg text-mistake-text", border: "border-mistake/30" },
+  [Status.Slop]: { label: "Slop", Icon: XIcon, cls: "bg-slop-bg text-slop-text", border: "border-slop/30" },
+  [Status.Refunded]: { label: "Refunded", Icon: ReturnIcon, cls: "bg-refunded-bg text-refunded-text", border: "border-refunded/30" },
 };
 
 export function StatusPill({ status }: { status: number }) {

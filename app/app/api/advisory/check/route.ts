@@ -1,10 +1,12 @@
-// Checks that a pasted advisory link is a GitHub private advisory on this pool's repo.
+// Checks that an advisory link is a GitHub private advisory on this pool's repo that this reporter
+// may pay a deposit for, and takes the filing fee when one is set.
 import { advisoryHashOf, parseAdvisoryUrl, repoIdOf } from "@/lib/advisory";
 import { syncPoolAdvisories } from "@/lib/server/advisorySync";
 import { loadGithub, loadPrivate } from "@/lib/server/db";
 import { githubConfigured } from "@/lib/server/github";
 import { currentSession } from "@/lib/server/githubSession";
 import { syncFresh } from "@/lib/server/indexer";
+import { collectFee, feeView, filingFee, paidFee, paymentRequiredResponse } from "@/lib/server/nano";
 import { bad, json } from "@/lib/server/views";
 
 export async function POST(req: Request) {
@@ -44,5 +46,22 @@ export async function POST(req: Request) {
   const advisoryHash = advisoryHashOf(parsed.url);
   const duplicate = Object.values(d.reports).find((r) => r.advisoryHash === advisoryHash && r.status <= 2);
   if (duplicate) return bad(`This advisory already has an open report (#${duplicate.id}).`);
-  return json({ ok: true, repo, ghsa: parsed.ghsa, url: parsed.url, advisoryHash });
+  const result = { ok: true, repo, ghsa: parsed.ghsa, url: parsed.url, advisoryHash };
+  // Last, once the report is known to be payable: the filing fee, paid through Circle Gateway.
+  // Without a payment the answer is 402 with what to pay; the browser signs and asks again.
+  const fee = filingFee();
+  if (!fee) return json(result);
+  try {
+    let record = await paidFee(advisoryHash);
+    if (!record) {
+      const header = req.headers.get("payment-signature");
+      if (!header) return await paymentRequiredResponse(req, fee);
+      const paid = await collectFee(header, fee, advisoryHash);
+      if (!paid.ok) return await paymentRequiredResponse(req, fee, paid.reason);
+      record = paid.record;
+    }
+    return json({ ...result, fee: feeView(fee, record) });
+  } catch (e) {
+    return bad(`The filing fee can't be taken right now: ${(e as Error).message}`, 502);
+  }
 }

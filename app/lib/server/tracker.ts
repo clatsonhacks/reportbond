@@ -72,7 +72,7 @@ export function trackedFromWebhook(
   };
 }
 
-export function trackedView(a: TrackedAdvisory, chain: ChainData, now: number, gh?: GithubData): TrackedReportView {
+export function trackedView(a: TrackedAdvisory, chain: ChainData, now: number, gh?: GithubData, feePaid = false): TrackedReportView {
   // The newest on-chain report for this advisory (a reporter may re-file after a refund).
   const onchain = Object.values(chain.reports)
     .filter((r) => r.advisoryHash === a.advisoryHash)
@@ -88,6 +88,7 @@ export function trackedView(a: TrackedAdvisory, chain: ChainData, now: number, g
   if (reporterMatch === "match") tags.push({ label: "Paid by the filer", tone: "good" });
   if (reporterMatch === "mismatch") tags.push({ label: "Paid by someone else", tone: "warn" });
   if (!onchain && now > bondDeadline) tags.push({ label: "No deposit", tone: "warn" });
+  if (feePaid) tags.push({ label: "Filing fee paid", tone: "good" });
   return {
     title: a.title ?? null,
     history,

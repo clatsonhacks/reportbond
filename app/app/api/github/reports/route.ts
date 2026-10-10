@@ -1,7 +1,7 @@
 // GET /api/github/reports?pool=ID — the pool's private reports from GitHub and their deposit status.
 // Only the pool creator (wallet sign-in) can see them: they reveal which advisories exist.
 import { syncPoolAdvisories } from "@/lib/server/advisorySync";
-import { loadGithub, loadTriage } from "@/lib/server/db";
+import { loadGithub, loadPrivate, loadTriage } from "@/lib/server/db";
 import { syncFresh } from "@/lib/server/indexer";
 import { signedInAddress } from "@/lib/server/session";
 import { trackedView } from "@/lib/server/tracker";
@@ -23,11 +23,11 @@ export async function GET(req: Request) {
   if (!verified) return json({ verified: false, reports: [] });
 
   const now = Math.floor(Date.now() / 1000);
-  const triage = await loadTriage();
+  const [triage, fees] = await Promise.all([loadTriage(), loadPrivate().then((p) => p.filingFees ?? {})]);
   const reports = Object.values(gh.advisories)
     .filter((a) => a.repo === verified.repo)
     .sort((a, b) => b.reportedAt - a.reportedAt)
     // The latest agent run for each report, if any.
-    .map((a) => ({ ...trackedView(a, chain, now, gh), triage: triage[a.ghsa]?.runs.at(-1) ?? null }));
+    .map((a) => ({ ...trackedView(a, chain, now, gh, Boolean(fees[a.advisoryHash])), triage: triage[a.ghsa]?.runs.at(-1) ?? null }));
   return json({ verified: true, repo: verified.repo, reports });
 }

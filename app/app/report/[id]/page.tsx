@@ -65,18 +65,24 @@ export default function ReportStatus() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="fade-in">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="min-w-0 text-xl font-semibold break-words">
-            Report <span className="num">#{r.id}</span>
-            <span className="text-ink-muted"> · </span>
-            <Link href={`/pool/${r.poolId}`} className="hover:underline">
+    <div className="fade-in">
+      {/* Header */}
+      <div className="geometric-bg px-6 sm:px-12 py-8">
+        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">
+              Report <span className="num">#{r.id}</span>
+            </h1>
+            <Link href={`/pool/${r.poolId}`} className="text-ink-muted hover:text-ink">
               {r.repoName ?? `Pool #${r.poolId}`}
             </Link>
-          </h1>
+          </div>
           <StatusPill status={r.status} />
         </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-6 sm:px-12 py-8 space-y-6">
+      <Card>
 
         <ol className="mt-6 space-y-0 border-y border-line">
           <TimelineStep
@@ -149,6 +155,7 @@ export default function ReportStatus() {
           <AdvisoryLink reportId={r.id} />
         </div>
       )}
+      </div>
     </div>
   );
 }

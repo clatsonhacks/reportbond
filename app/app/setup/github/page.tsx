@@ -66,13 +66,18 @@ function SetupGithub() {
   const field = "w-full rounded-[8px] border border-line bg-surface px-3 py-2 text-sm";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Set up the GitHub App</h1>
-        <p className="mt-1 text-ink-muted">
-          A one-time step for whoever runs this ReportBond site. After this, maintainers just click Connect GitHub.
-        </p>
+    <div className="fade-in">
+      {/* Header */}
+      <div className="geometric-bg px-6 sm:px-12 py-8">
+        <div className="mx-auto max-w-7xl">
+          <h1 className="text-3xl font-black tracking-tight">Set up the GitHub App</h1>
+          <p className="mt-1 text-ink-muted">
+            A one-time step for whoever runs this ReportBond site. After this, maintainers just click Connect GitHub.
+          </p>
+        </div>
       </div>
+
+      <div className="mx-auto max-w-xl px-6 sm:px-12 py-8 space-y-6">
 
       {done && (
         <Notice tone="returned">
@@ -145,6 +150,7 @@ function SetupGithub() {
           </form>
         </Card>
       )}
+      </div>
 
       {/* Posted to GitHub by create(). */}
       <form ref={formRef} method="post" className="hidden">

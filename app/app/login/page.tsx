@@ -104,11 +104,16 @@ function Login() {
   const walletDone = isConnected && (login ? linked : true);
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="mt-1 text-ink-muted">Your GitHub account says who you are. Your wallet is where deposits and bounties move.</p>
+    <div className="fade-in">
+      {/* Header */}
+      <div className="geometric-bg px-6 sm:px-12 py-8">
+        <div className="mx-auto max-w-7xl">
+          <h1 className="text-3xl font-black tracking-tight">Sign in</h1>
+          <p className="mt-1 text-ink-muted">Your GitHub account says who you are. Your wallet is where deposits and bounties move.</p>
+        </div>
       </div>
+
+      <div className="mx-auto max-w-xl px-6 sm:px-12 py-8 space-y-6">
 
       {session && !session.configured && (
         <Notice tone="waiting">
@@ -173,6 +178,7 @@ function Login() {
           </p>
         )}
       </Card>
+      </div>
     </div>
   );
 }

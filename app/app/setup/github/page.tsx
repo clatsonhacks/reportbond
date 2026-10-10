@@ -110,7 +110,7 @@ function SetupGithub() {
               <input className={`${field} num`} value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://smee.io/your-channel" />
               <span className="block text-xs text-ink-muted">
                 {isLocal
-                  ? "GitHub can't reach localhost. Leave empty to create the app with webhooks off (Connect GitHub and verified pools still work), or paste a tunnel URL to track new reports."
+                  ? "GitHub can't reach localhost. Leave empty to create the app without a webhook (Connect GitHub and verified pools still work), or paste a tunnel URL to track new reports."
                   : "Leave empty to use this site's own webhook address."}
               </span>
             </label>

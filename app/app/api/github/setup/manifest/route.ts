@@ -34,6 +34,6 @@ export async function POST(req: Request) {
   return json({
     action: manifestAction(state, b.organization),
     manifest: JSON.stringify(manifest),
-    webhooksActive: manifest.hook_attributes.active,
+    webhooksActive: "hook_attributes" in manifest,
   });
 }

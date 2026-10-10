@@ -35,7 +35,7 @@ const mock = createServer((req, res) => {
         slug: "reportbond-setup-test",
         client_id: "Iv1.setuptest",
         client_secret: "setup-client-secret",
-        webhook_secret: "setup-webhook-secret",
+        webhook_secret: null, // what GitHub returns for an app created without a webhook
         pem,
         html_url: "https://github.com/apps/reportbond-setup-test",
       }),
@@ -86,7 +86,6 @@ async function main() {
     manifest.default_permissions?.repository_advisories === "write" &&
       manifest.default_permissions?.contents === "read" &&
       manifest.default_permissions?.metadata === "read" &&
-      manifest.default_events?.includes("repository_advisory") &&
       manifest.request_oauth_on_install === true,
     manifest,
   );
@@ -95,12 +94,23 @@ async function main() {
     manifest.redirect_url === `${BASE}/api/github/setup/callback` && manifest.callback_urls?.[0] === `${BASE}/api/github/callback`,
     manifest,
   );
-  check("on localhost without a tunnel, webhooks are created off", manifest.hook_attributes?.active === false, manifest.hook_attributes);
+  // GitHub rejects any localhost webhook URL, even an inactive one, so it must be left out entirely.
+  check(
+    "on localhost without a tunnel, the manifest has no webhook or events at all",
+    !("hook_attributes" in manifest) && !("default_events" in manifest) && !m1.body.manifest?.toString().includes("localhost:3000/api/github/webhook"),
+    manifest,
+  );
 
   const m2 = await call("/api/github/setup/manifest", { json: { organization: "my-org", webhookUrl: "https://smee.io/abc" } });
   const manifest2 = JSON.parse(String(m2.body.manifest ?? "{}"));
   check("organisation apps post to the organisation's page", String(m2.body.action).includes("/organizations/my-org/settings/apps/new"), m2.body.action);
-  check("a tunnel URL turns webhooks on", manifest2.hook_attributes?.active === true && manifest2.hook_attributes?.url === "https://smee.io/abc", manifest2.hook_attributes);
+  check(
+    "a tunnel URL turns webhooks and the advisory event on",
+    manifest2.hook_attributes?.active === true &&
+      manifest2.hook_attributes?.url === "https://smee.io/abc" &&
+      manifest2.default_events?.includes("repository_advisory"),
+    manifest2,
+  );
 
   const forged = await call("/api/github/setup/callback?code=good-code&state=forged", { cookie: stateCookie(m2.headers) });
   check("callback with a forged state is refused, no code exchanged", forged.location.includes("error=expired") && conversions.length === 0, forged.location);
@@ -124,7 +134,7 @@ async function main() {
       value("GITHUB_APP_SLUG") === "reportbond-setup-test" &&
       value("GITHUB_CLIENT_ID") === "Iv1.setuptest" &&
       value("GITHUB_CLIENT_SECRET") === "setup-client-secret" &&
-      value("GITHUB_WEBHOOK_SECRET") === "setup-webhook-secret" &&
+      (value("GITHUB_WEBHOOK_SECRET") ?? "").length >= 32 && // generated, since GitHub returned none
       Boolean(value("GITHUB_APP_PRIVATE_KEY")),
     saved.replace(/PRIVATE_KEY=.*/, "PRIVATE_KEY=<hidden>"),
   );

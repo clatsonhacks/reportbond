@@ -2,7 +2,7 @@
 // we send GitHub a pre-filled app definition, the owner confirms, and GitHub hands back the credentials.
 import "server-only";
 import "./env";
-import { timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { githubConfigured } from "./github";
@@ -39,13 +39,15 @@ export function buildManifest(o: ManifestOptions) {
   const appUrl = o.appUrl.replace(/\/$/, "");
   const local = /\/\/(localhost|127\.0\.0\.1)/.test(appUrl);
   const customHook = o.webhookUrl?.trim();
+  // GitHub rejects a webhook URL it can't reach (localhost), even an inactive one. So without a public
+  // URL the app is created with no webhook at all; add one later in the app's settings on GitHub.
+  const hookUrl = customHook || (local ? null : `${appUrl}/api/github/webhook`);
   return {
     name: o.name,
     url: appUrl,
     description:
       "Refundable USDC deposits for private security reports. Verifies maintainers and tracks private vulnerability reports.",
-    // GitHub can't deliver to localhost; without a public webhook URL the app is created with webhooks off.
-    hook_attributes: { url: customHook || `${appUrl}/api/github/webhook`, active: !(local && !customHook) },
+    ...(hookUrl ? { hook_attributes: { url: hookUrl, active: true }, default_events: ["repository_advisory"] } : {}),
     redirect_url: `${appUrl}/api/github/setup/callback`,
     callback_urls: [`${appUrl}/api/github/callback`],
     public: true,
@@ -56,7 +58,6 @@ export function buildManifest(o: ManifestOptions) {
       contents: "read",
       pull_requests: "write",
     },
-    default_events: ["repository_advisory"],
   };
 }
 
@@ -91,7 +92,9 @@ export async function convertManifest(code: string): Promise<{ creds: AppCredent
       GITHUB_APP_SLUG: String(b.slug),
       GITHUB_CLIENT_ID: String(b.client_id),
       GITHUB_CLIENT_SECRET: String(b.client_secret),
-      GITHUB_WEBHOOK_SECRET: String(b.webhook_secret ?? ""),
+      // An app created without a webhook has no secret yet. Generate one, to enter on GitHub when a
+      // webhook is added later (App settings -> Webhook -> Secret).
+      GITHUB_WEBHOOK_SECRET: b.webhook_secret ? String(b.webhook_secret) : randomBytes(24).toString("hex"),
       // One line, so it fits in .env; github.ts turns "\n" back into newlines.
       GITHUB_APP_PRIVATE_KEY: String(b.pem).trim().replace(/\r?\n/g, "\\n") + "\\n",
     },

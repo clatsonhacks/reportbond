@@ -3,8 +3,8 @@ import { config } from "@/lib/network";
 export function TestnetBanner() {
   if (!config.isTestnet) return null;
   return (
-    <div className="border-b border-line bg-surface px-4 py-2.5" role="status">
-      <div className="mx-auto flex max-w-4xl items-center justify-center gap-3 text-xs font-medium text-ink-muted">
+    <div className="bg-surface px-4 py-1.5" role="status">
+      <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-xs font-medium text-ink-muted">
         <div className="flex h-1 w-1 rounded-full bg-ink-muted"></div>
         <span>
           {config.network === "local" ? "Local Development" : "Testnet Mode"}

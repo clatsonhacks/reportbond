@@ -21,9 +21,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Providers>
           <TestnetBanner />
           <Header />
-          <main className="mx-auto w-full max-w-4xl px-6 py-12 sm:py-16">{children}</main>
-          <footer className="mx-auto max-w-4xl px-6 pb-20 pt-16">
-            <div className="rounded-3xl border-2 border-line bg-card p-8 text-center">
+          <main className="w-full">{children}</main>
+          <footer className="mx-auto max-w-7xl px-6 sm:px-12 pb-16 pt-8">
+            <div className="rounded-2xl border border-line bg-card p-6 text-center">
               <div className="mb-4 flex justify-center">
                 <svg className="h-12 w-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" opacity="0.1" />

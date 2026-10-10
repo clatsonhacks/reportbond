@@ -98,6 +98,8 @@ export type TriageRun = {
   rulesVersion: number;
   model: string;
   grounding: Grounding;
+  /** What the triage agent looked at with its tools, and what it concluded. Null on runs before tools existed. */
+  investigation?: { steps: { tool: string; input: string; ok: boolean; note: string }[]; notes: string } | null;
   triage: Triage | null;
   critic: Critic | null;
   /** What the maintainer is shown. Null if the agents could not produce one. */

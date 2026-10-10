@@ -94,6 +94,19 @@ export function TriageResult({ run }: { run: TriageRun }) {
               ))}
             </ul>
           ) : null}
+          {run.investigation && run.investigation.steps.length > 0 && (
+            <div>
+              <p className="font-medium">What the reviewer looked at ({run.investigation.steps.length} steps)</p>
+              <ol className="mt-0.5 list-decimal space-y-0.5 pl-5">
+                {run.investigation.steps.map((s, i) => (
+                  <li key={i} className="num break-all">
+                    {s.tool} <span className="text-ink-muted">{s.input}</span>
+                    {!s.ok && <span className="text-slashed"> (failed)</span>}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           <Refs title="Files cited" items={g.paths} />
           <Refs title="Line numbers cited" items={g.lines} />
           <Refs title="Functions and identifiers cited" items={g.symbols} />

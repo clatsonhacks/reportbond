@@ -16,7 +16,8 @@
     "check:deploy": "tsx scripts/check-deployment.ts",
     "test:github": "tsx --conditions=react-server scripts/test-github.ts",
     "test:github-setup": "tsx scripts/test-github-setup.ts",
-    "test:grounding": "tsx scripts/test-grounding.ts"
+    "test:grounding": "tsx scripts/test-grounding.ts",
+    "test:agents": "tsx --conditions=react-server scripts/test-agents.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

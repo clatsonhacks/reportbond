@@ -98,7 +98,15 @@ export async function checkReferences(
   for (const ref of refs.paths) {
     const hit = resolvePath(ref, tree);
     resolved.set(ref, hit);
-    paths.push(hit ? { ref, status: "found", detail: hit === ref ? undefined : `matches ${hit}` } : { ref, status: "missing" });
+    // A bare file name that isn't in the repo is often the reporter's own file (poc.py, payload.txt):
+    // unchecked, not missing. Only a path with a directory claims to be a place in the repository.
+    paths.push(
+      hit
+        ? { ref, status: "found", detail: hit === ref ? undefined : `matches ${hit}` }
+        : ref.includes("/")
+          ? { ref, status: "missing" }
+          : { ref, status: "unchecked", detail: "not in the repository; may be a file the reporter created" },
+    );
     if (hit && files.size < 8 && !files.has(hit)) {
       const text = await lookups.readFile(hit);
       if (text !== null) files.set(hit, text);

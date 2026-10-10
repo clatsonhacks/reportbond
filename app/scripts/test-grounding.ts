@@ -68,6 +68,13 @@ async function main() {
     r.grounding.symbols,
   );
 
+  const poc = await checkReferences(extractReferences("Run python3 poc.py > payload.txt then ./build/parser < payload.txt. The bug is in src/parser/header.c."), TREE, lookups);
+  check(
+    "the reporter's own files (poc.py, payload.txt) are unchecked, not missing",
+    poc.grounding.paths.filter((p) => p.status === "unchecked").length === 2 && poc.grounding.missingShare === 0,
+    poc.grounding.paths,
+  );
+
   console.log("A fabricated report");
   const fake = extractReferences(FAKE);
   const f = await checkReferences(fake, TREE, lookups);

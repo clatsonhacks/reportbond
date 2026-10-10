@@ -1,0 +1,6 @@
+contracts
+docs
+*.md
+app/.data
+app/.next
+app/node_modules

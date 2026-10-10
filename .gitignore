@@ -11,3 +11,6 @@ config/local.json
 .data/
 app/.data/
 docs/
+.vercel
+
+.vercel

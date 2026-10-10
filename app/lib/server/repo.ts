@@ -80,3 +80,20 @@ export async function advisoryContent(installationId: number, repo: string, ghsa
     state: a.state,
   };
 }
+
+export type AdvisoryListItem = {
+  ghsa_id: string;
+  html_url: string;
+  state: string;
+  created_at?: string;
+  summary?: string;
+  author?: { login: string } | null;
+};
+
+/** The repository's security advisories, newest first, including private reports still in triage. */
+export async function listAdvisories(installationId: number, repo: string): Promise<AdvisoryListItem[]> {
+  return installationGet<AdvisoryListItem[]>(
+    installationId,
+    `/repos/${repo}/security-advisories?per_page=50&sort=created&direction=desc`,
+  );
+}

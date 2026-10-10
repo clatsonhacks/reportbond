@@ -234,6 +234,8 @@ export type TrackedAdvisory = {
   url: string; // canonical advisory link, as hashed on-chain
   advisoryHash: string;
   reporter: string | null; // GitHub login
+  /** The report's title. Private: shown only to the reporter and the pool creator. */
+  title?: string;
   githubState: string; // triage, draft, closed, published
   reportedAt: number; // unix seconds
   updatedAt: number;

@@ -52,6 +52,7 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Triage and critic agents: verdict, confidence, severity and per-claim evidence, with a second reviewer. Recommend-only; the maintainer signs
 - [x] Tools: the triage agent investigates with read-only tools (`list_files`, `read_file`, `search_code`, `load_skill`), scoped to the one repository, in a bounded loop. What it read is stored and shown
 - [x] Skills: seven review playbooks (memory safety, injection, access control, web, crypto, denial of service, smart contracts). The best match is chosen from the report and given to the reviewer up front
+- [x] A different model per step on Groq, because limits are per model: investigation on `openai/gpt-oss-120b`, verdict on `openai/gpt-oss-20b`, critic on `qwen/qwen3.8-27b`, each with fallbacks
 - [x] Rate-limit aware: the client paces itself to the AI plan and shrinks the review on a small plan (Groq's free tier allows 8,000 tokens a minute, so a review there takes a few minutes and reads less)
 - [x] Tried on this repository with the real model (`pnpm try:agents clatsonhacks/reportbond`): a wrong-but-honest reentrancy report came back *mistake*, a fabricated one *slop*
 - [x] Injection attempts in a report are flagged and sent to the maintainer, not followed
@@ -64,6 +65,7 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Reporters sign in with GitHub from the report flow and return to it
 - [x] A wallet is linked to a GitHub account only with both proofs at once: a GitHub session and a wallet signature
 - [x] The maintainer's tracker shows, per report, whether the deposit came from the account that filed it, from a wallet linked to someone else, or from an unlinked wallet
+- [x] One sign-in page (`/login`): GitHub, then wallet, then one signature that links them. The header shows the signed-in GitHub account on every page
 - [ ] Not enforced: linking is optional, and a mismatch is shown to the maintainer, not blocked
 
 ### Testing

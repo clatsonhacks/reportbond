@@ -33,6 +33,9 @@ function check(name: string, ok: boolean, detail?: unknown) {
 // ------------------------------------------------------------- mock GitHub
 
 const patches: { repo: string; ghsa: string; state: string }[] = [];
+// What GitHub's "list repository security advisories" returns; tests add to it.
+const listed: { ghsa_id: string; html_url: string; state: string; created_at: string; summary: string; author: { login: string } }[] = [];
+let listUnavailable = false; // a private repository: GitHub answers 404
 const publicKey = createPublicKey(process.env.GITHUB_APP_PRIVATE_KEY!.replace(/\\n/g, "\n"));
 
 function verifyAppJwt(auth: string | undefined): boolean {
@@ -81,6 +84,10 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (req.method === "POST" && url.pathname === `/app/installations/${INSTALLATION}/access_tokens`) {
     if (!verifyAppJwt(auth)) return send(401, { message: "bad app jwt" });
     return send(201, { token: "inst-token", expires_at: new Date(Date.now() + 3600_000).toISOString() });
+  }
+  if (req.method === "GET" && url.pathname === `/repos/${REPO}/security-advisories`) {
+    if (auth !== "Bearer inst-token") return send(401, { message: "bad installation token" });
+    return listUnavailable ? send(404, { message: "Not Found" }) : send(200, listed);
   }
   const m = url.pathname.match(/^\/repos\/([^/]+\/[^/]+)\/security-advisories\/(GHSA-[\w-]+)$/);
   if (req.method === "GET" && m) {
@@ -209,7 +216,7 @@ async function webhook(event: string, payload: unknown, opts: { delivery?: strin
 const ALPHABET = "23456789cfghjmpqrvwx";
 // GitHub writes GHSA IDs in upper case; the server stores them that way.
 const ghsa = (n: number) =>
-  "GHSA-" + [0, 1, 2].map((g) => Array.from({ length: 4 }, (_, i) => ALPHABET[(RUN.charCodeAt((g * 4 + i) % RUN.length) + n * 5 + i) % 20]).join("")).join("-").toUpperCase();
+  "GHSA-" + [0, 1, 2].map((g) => Array.from({ length: 4 }, (_, i) => ALPHABET[(RUN.charCodeAt((g * 4 + i) % RUN.length) + n * 3 + i) % 20]).join("")).join("-").toUpperCase();
 const advisoryUrl = (id: string) => `https://github.com/${REPO}/security/advisories/${id}`;
 
 function advisoryPayload(id: string, createdAt: Date) {
@@ -392,6 +399,56 @@ async function main() {
   const unlink = await call("/api/github/link", { method: "DELETE", headers: reporterAuth });
   check("unlinking returns it to unknown", unlink.status === 200 && (await who(A))?.reporterMatch === "unknown");
 
+  console.log("A reporter's own reports");
+  const [D, E] = [ghsa(4), ghsa(5)];
+  const listItem = (id: string, login: string, summary: string) => ({
+    ghsa_id: id,
+    html_url: advisoryUrl(id),
+    state: "triage",
+    created_at: new Date().toISOString(),
+    summary,
+    author: { login },
+  });
+  // D and E never arrive by webhook: they are only found by asking GitHub for the list.
+  listed.push(listItem(D, "Researcher-1", "Listed only"), listItem(E, "Someone-Else", "Not yours"));
+  type Mine = { ghsa: string; title: string | null; bond: string; reportId: number | null; depositAmount: string };
+  const mineUrl = `/api/github/my-reports?pool=${poolId}`;
+  check("your reports need a GitHub session", (await call(mineUrl)).status === 401);
+  const mine = await call(mineUrl, { cookie: reporterSession });
+  const mineList = (mine.body.reports ?? []) as Mine[];
+  const mineOf = (id: string) => mineList.find((r) => r.ghsa === id);
+  check(
+    "a report found on GitHub is listed for its filer, awaiting a deposit",
+    mine.body.available === true && mineOf(D)?.title === "Listed only" && mineOf(D)?.bond === "awaiting" && mineOf(D)?.reportId === null && BigInt(mineOf(D)?.depositAmount ?? "0") > 0n,
+    mine.body,
+  );
+  check("a report already paid for carries its on-chain report", mineOf(A)?.reportId === Number(rA), mineOf(A));
+  check("someone else's report is not listed", mineOf(E) === undefined, mineList.map((r) => r.ghsa));
+  check("an account that filed nothing sees no reports", ((await call(mineUrl, { cookie: session })).body.reports as Mine[]).length === 0);
+
+  const checkLink = (id: string, cookie?: string) => call("/api/advisory/check", { json: { poolId: Number(poolId), url: advisoryUrl(id) }, cookie });
+  check("paying on a verified pool needs a GitHub session", (await checkLink(D)).status === 401);
+  const okD = await checkLink(D, reporterSession);
+  check("the filer can pay for their own report", okD.status === 200 && okD.body.advisoryHash === advisoryHashOf(advisoryUrl(D)), okD.body);
+  check("another account cannot pay for it", (await checkLink(D, session)).status === 403);
+  check("the reporter cannot pay for someone else's report", (await checkLink(E, reporterSession)).status === 403);
+  check("a report that isn't on GitHub cannot be paid for", (await checkLink(ghsa(9), reporterSession)).status === 404);
+  listUnavailable = true;
+  check("a repository without private reporting is refused", (await checkLink(D, reporterSession)).status === 409);
+  check("and the reporter is told so", (await call(mineUrl, { cookie: reporterSession })).body.available === false);
+  listUnavailable = false;
+
+  type Tagged = { ghsa: string; title: string | null; tags: { label: string }[]; history: { valid: number; mistake: number; slop: number } };
+  const tagged = async (id: string) =>
+    ((await call(`/api/github/reports?pool=${poolId}`, { headers: auth })).body.reports as Tagged[]).find((r) => r.ghsa === id);
+  const labels = (t?: Tagged) => (t?.tags ?? []).map((x) => x.label);
+  const tD = await tagged(D);
+  check("the maintainer sees the listed report with its title", tD?.title === "Listed only", tD);
+  // The history follows the GitHub account across pools, so an earlier run of this script may have left some.
+  const settledBefore = tD ? tD.history.valid + tD.history.mistake + tD.history.slop : -1;
+  check("a reporter with no settled reports is tagged as new", labels(tD).includes("First report here") === (settledBefore === 0), [labels(tD), tD?.history]);
+  check("a report past its window is tagged as having no deposit", labels(await tagged(B)).includes("No deposit"), labels(await tagged(B)));
+
   console.log("Verdicts written back to GitHub");
   check("Valid verdict relayed", Boolean((await relay(rA, Verdict.Valid, parseUsdc("1"))).body.hash));
   const pA = await waitForPatch(A);
@@ -404,6 +461,15 @@ async function main() {
   const gsync = cron.body.github as { synced: string[]; failed: unknown[] } | undefined;
   check("hourly cron finds nothing left to sync", gsync?.synced.length === 0 && gsync?.failed.length === 0, cron.body);
   check("each advisory was patched exactly once", patches.filter((x) => x.ghsa === A).length === 1 && patches.filter((x) => x.ghsa === C).length === 1, patches);
+
+  // One valid and one slop: the reporter's next report carries that history.
+  const dAfter = await tagged(D);
+  check(
+    "settled reports count towards the reporter's history",
+    dAfter?.history.valid === (tD?.history.valid ?? 0) + 1 && dAfter?.history.slop === (tD?.history.slop ?? 0) + 1,
+    dAfter?.history,
+  );
+  check("past slop shows on the reporter's later reports", labels(dAfter).some((l) => l.startsWith("Flagged")), labels(dAfter));
 
   console.log("Rules and AI review");
   const rulesUrl = `/api/pools/${poolId}/rules`;

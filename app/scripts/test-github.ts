@@ -4,17 +4,30 @@
 //   GITHUB_APP_ID, GITHUB_APP_SLUG, GITHUB_APP_PRIVATE_KEY, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
 //   GITHUB_WEBHOOK_SECRET, CRON_SECRET
 //   and for the agents: AI_PROVIDER=groq GROQ_API_KEY=mock GROQ_BASE_URL=http://127.0.0.1:4010
+//   and for the filing fee: FILING_FEE_USDC=0.001 FILING_FEE_RECIPIENT=0x… GATEWAY_API_URL=http://127.0.0.1:4010
 // Run with the same env: NETWORK=local pnpm test:github
 import "../jobs/env";
 import { createHmac, createPublicKey, createVerify } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { createTestClient, createWalletClient, http, parseEventLogs, publicActions, type Hex } from "viem";
+import { createTestClient, createWalletClient, formatUnits, http, parseEventLogs, parseUnits, publicActions, verifyTypedData, type Hex } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
 import { advisoryHashOf, repoIdOf } from "../lib/advisory";
 import { encodeToken, signInMessage } from "../lib/auth";
 import { reportBond } from "../lib/contract";
 import { Verdict, verdictTypedData } from "../lib/eip712";
 import { parseUsdc } from "../lib/format";
+import {
+  authorizationTypedData,
+  BATCHING_NAME,
+  BATCHING_VERSION,
+  decodeHeader,
+  encodeHeader,
+  newAuthorization,
+  type Authorization,
+  type PaymentPayload,
+  type PaymentRequired,
+  type PaymentRequirements,
+} from "../lib/nano";
 import { chain, config } from "../lib/network";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
@@ -106,6 +119,40 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     patches.push({ repo: m[1], ghsa: m[2], state: JSON.parse(body).state });
     return send(200, {});
   }
+  // Circle Gateway (nanopayments): balances, and verify/settle of signed payment authorizations.
+  if (url.pathname === "/v1/x402/supported") {
+    return send(200, {
+      kinds: [
+        {
+          x402Version: 2,
+          scheme: "exact",
+          network: `eip155:${chain.id}`,
+          extra: { name: BATCHING_NAME, version: BATCHING_VERSION, verifyingContract: GATEWAY_WALLET, assets: [{ symbol: "USDC", address: GATEWAY_USDC, decimals: 6 }] },
+        },
+      ],
+    });
+  }
+  if (req.method === "POST" && url.pathname === "/v1/balances") {
+    const who = String(JSON.parse(body).sources[0].depositor).toLowerCase();
+    return send(200, { balances: [{ balance: formatUnits(gatewayBalances.get(who) ?? 0n, 6) }] });
+  }
+  if (req.method === "POST" && (url.pathname === "/v1/x402/verify" || url.pathname === "/v1/x402/settle")) {
+    const settle = url.pathname.endsWith("settle");
+    const { paymentPayload, paymentRequirements: reqs } = JSON.parse(body) as { paymentPayload: PaymentPayload; paymentRequirements: PaymentRequirements };
+    const a = paymentPayload.payload.authorization;
+    const payer = a.from.toLowerCase();
+    const refuse = (reason: string) => send(200, settle ? { success: false, errorReason: reason, payer } : { isValid: false, invalidReason: reason, payer });
+    const signed = await verifyTypedData({ address: a.from, ...authorizationTypedData(a, reqs), signature: paymentPayload.payload.signature }).catch(() => false);
+    if (!signed) return refuse("invalid_signature");
+    if (a.to.toLowerCase() !== reqs.payTo.toLowerCase() || a.value !== reqs.amount) return refuse("authorization_mismatch");
+    if (usedNonces.has(a.nonce)) return refuse("nonce_already_used");
+    if ((gatewayBalances.get(payer) ?? 0n) < BigInt(a.value)) return refuse("insufficient_balance");
+    if (!settle) return send(200, { isValid: true, payer });
+    usedNonces.add(a.nonce);
+    gatewayBalances.set(payer, gatewayBalances.get(payer)! - BigInt(a.value));
+    settlements.push({ payer, to: a.to.toLowerCase(), value: a.value });
+    return send(200, { success: true, transaction: `settle-${settlements.length}`, payer });
+  }
   // The repository the agents read.
   if (url.pathname === `/repos/${REPO}`) return send(200, { full_name: REPO, default_branch: "main", description: "Demo", language: "C" });
   if (url.pathname === `/repos/${REPO}/git/trees/main`) {
@@ -141,6 +188,15 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   }
   send(404, { message: `mock: no route ${req.method} ${url.pathname}` });
 });
+
+const GATEWAY_WALLET = "0x0077777d7EBA4688BDeF3E311b846F25870A19B9";
+const GATEWAY_USDC = "0x3600000000000000000000000000000000000000";
+const gatewayBalances = new Map<string, bigint>(); // by depositor, atomic USDC (6 decimals)
+const usedNonces = new Set<string>();
+const settlements: { payer: string; to: string; value: string }[] = [];
+// Set FILING_FEE_USDC (with FILING_FEE_RECIPIENT and GATEWAY_API_URL pointing at this mock) on the
+// server and here to test the filing fee; without it the fee checks are skipped.
+const FEE = process.env.FILING_FEE_USDC ? parseUnits(process.env.FILING_FEE_USDC, 6).toString() : null;
 
 const REPO_FILES: Record<string, string> = {
   "README.md": "# demo",
@@ -265,6 +321,45 @@ async function waitForPatch(id: string, ms = 20_000) {
 }
 
 // --------------------------------------------------------------------- test
+
+// The filing fee on a report the reporter is allowed to pay for: asked for with a 402, paid with a
+// signature that Gateway (the mock) verifies, and charged once.
+async function filingFeeChecks(checkD: (payment?: string) => ReturnType<typeof call>) {
+  const before = settlements.length;
+  const due = await checkD();
+  const required = decodeHeader<PaymentRequired>(due.headers.get("payment-required") ?? "");
+  const accepted = required?.accepts[0];
+  check(
+    "a payable report first asks for the filing fee (402)",
+    due.status === 402 && accepted?.amount === FEE && accepted?.payTo.toLowerCase() === process.env.FILING_FEE_RECIPIENT?.toLowerCase() && accepted?.extra.verifyingContract === GATEWAY_WALLET,
+    [due.status, required],
+  );
+  if (!required || !accepted) return;
+  const payment = async (a: typeof reporter, change: Partial<Authorization> = {}) => {
+    const authorization = { ...newAuthorization(a.address, accepted), ...change };
+    const signature = await a.signTypedData(authorizationTypedData(authorization, accepted));
+    return encodeHeader({ x402Version: required.x402Version, payload: { authorization, signature }, resource: required.resource, accepted });
+  };
+  check("a malformed payment is refused", (await checkD("not-a-payment")).status === 402);
+  const broke = await checkD(await payment(reporter));
+  check("a wallet with no Gateway balance cannot pay", broke.status === 402 && /balance/i.test(String(broke.body.error)), broke.body);
+  gatewayBalances.set(reporter.address.toLowerCase(), 5n * BigInt(FEE!));
+  const bal = await call(`/api/nano/balance?address=${reporter.address}`);
+  check("the app reports the wallet's Gateway balance", bal.status === 200 && bal.body.balance === (5n * BigInt(FEE!)).toString() && bal.body.wallet === GATEWAY_WALLET, bal.body);
+  check("a payment signed for less than the fee is refused", (await checkD(await payment(reporter, { value: "1" }))).status === 402);
+  check("nothing was charged for the refused payments", settlements.length === before, settlements);
+  const paid = await checkD(await payment(reporter));
+  const fee = paid.body.fee as { paid: boolean; amount: string; transaction: string } | undefined;
+  check("a signed payment covers the fee and the report can go on to the deposit", paid.status === 200 && fee?.paid === true && fee.amount === FEE && Boolean(fee.transaction), paid.body);
+  const last = settlements.at(-1);
+  check(
+    "Gateway moved the fee from the reporter to the recipient",
+    settlements.length === before + 1 && last?.payer === reporter.address.toLowerCase() && last.to === process.env.FILING_FEE_RECIPIENT?.toLowerCase() && last.value === FEE,
+    settlements,
+  );
+  const again = await checkD();
+  check("the fee is charged once per report", again.status === 200 && (again.body.fee as { paid: boolean })?.paid === true && settlements.length === before + 1, again.body);
+}
 
 async function main() {
   if (config.network !== "local") throw new Error("Run with NETWORK=local");
@@ -426,8 +521,10 @@ async function main() {
   check("someone else's report is not listed", mineOf(E) === undefined, mineList.map((r) => r.ghsa));
   check("an account that filed nothing sees no reports", ((await call(mineUrl, { cookie: session })).body.reports as Mine[]).length === 0);
 
-  const checkLink = (id: string, cookie?: string) => call("/api/advisory/check", { json: { poolId: Number(poolId), url: advisoryUrl(id) }, cookie });
+  const checkLink = (id: string, cookie?: string, payment?: string) =>
+    call("/api/advisory/check", { json: { poolId: Number(poolId), url: advisoryUrl(id) }, cookie, headers: payment ? { "Payment-Signature": payment } : undefined });
   check("paying on a verified pool needs a GitHub session", (await checkLink(D)).status === 401);
+  if (FEE) await filingFeeChecks((payment) => checkLink(D, reporterSession, payment));
   const okD = await checkLink(D, reporterSession);
   check("the filer can pay for their own report", okD.status === 200 && okD.body.advisoryHash === advisoryHashOf(advisoryUrl(D)), okD.body);
   check("another account cannot pay for it", (await checkLink(D, session)).status === 403);
@@ -446,6 +543,7 @@ async function main() {
   check("the maintainer sees the listed report with its title", tD?.title === "Listed only", tD);
   // The history follows the GitHub account across pools, so an earlier run of this script may have left some.
   const settledBefore = tD ? tD.history.valid + tD.history.mistake + tD.history.slop : -1;
+  if (FEE) check("the maintainer sees that the filing fee was paid", labels(tD).includes("Filing fee paid"), labels(tD));
   check("a reporter with no settled reports is tagged as new", labels(tD).includes("First report here") === (settledBefore === 0), [labels(tD), tD?.history]);
   check("a report past its window is tagged as having no deposit", labels(await tagged(B)).includes("No deposit"), labels(await tagged(B)));
 

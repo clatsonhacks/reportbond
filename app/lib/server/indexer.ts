@@ -8,7 +8,10 @@ import { config } from "../network";
 import { emptyChain, loadChain, saveChain, type ChainData, type EventKind, type TimelineEntry } from "./db";
 
 const CHUNK = 5_000n;
+const PARALLEL = 6;
 const MIN_INTERVAL_MS = 1_000;
+// Serverless functions must answer quickly; long-running jobs set SYNC_BUDGET_MS=0 (no limit).
+const BUDGET_MS = Number(process.env.SYNC_BUDGET_MS ?? (process.env.VERCEL ? 6_000 : 0));
 
 // Next bundles each route separately; keeping sync state on globalThis means they share one sync.
 const state = ((globalThis as { __reportbondIndexer?: { running: Promise<ChainData> | null; lastRun: number } })
@@ -65,13 +68,19 @@ async function doSync(): Promise<ChainData> {
   const touchedPools = new Set<number>();
   const blockTimes = new Map<bigint, number>();
 
+  // Fetch several chunks at once, apply them in block order. On a serverless host each sync has a time
+  // budget: it saves how far it got and the next request carries on, so a long backlog can't time out
+  // and lose everything. Jobs (no budget) run until caught up.
+  const started = Date.now();
   while (from <= latest) {
-    const to = from + CHUNK - 1n > latest ? latest : from + CHUNK - 1n;
-    const logs = (await publicClient.getContractEvents({
-      ...reportBond,
-      fromBlock: from,
-      toBlock: to,
-    })) as unknown as DecodedLog[];
+    const ranges: [bigint, bigint][] = [];
+    for (let f = from; f <= latest && ranges.length < PARALLEL; f += CHUNK) {
+      ranges.push([f, f + CHUNK - 1n > latest ? latest : f + CHUNK - 1n]);
+    }
+    const batches = (await Promise.all(
+      ranges.map(([fromBlock, toBlock]) => publicClient.getContractEvents({ ...reportBond, fromBlock, toBlock })),
+    )) as unknown as DecodedLog[][];
+    const logs = batches.flat();
 
     for (const b of new Set(logs.map((l) => l.blockNumber))) {
       if (!blockTimes.has(b)) {
@@ -81,8 +90,13 @@ async function doSync(): Promise<ChainData> {
     }
 
     for (const log of logs) apply(d, log, blockTimes.get(log.blockNumber)!, touchedPools);
+    const to = ranges[ranges.length - 1][1];
     d.lastBlock = Number(to);
     from = to + 1n;
+    if (BUDGET_MS && Date.now() - started > BUDGET_MS && from <= latest) {
+      console.warn(`[indexer] time budget reached at block ${d.lastBlock} of ${latest}; continuing on the next sync`);
+      break;
+    }
   }
 
   // Balances come from the contract itself, so the cache never re-implements the bounty math.

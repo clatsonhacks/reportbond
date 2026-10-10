@@ -20,20 +20,26 @@ export default function PoolPage() {
   const creatorUrl = addressUrl(pool.creator);
 
   return (
-    <div className="space-y-6">
-      <Card className="fade-in">
-        <p className="text-sm text-ink-muted">Security reports</p>
-        <h1 className="mt-1 text-2xl font-semibold break-words">{pool.repoName ?? `Pool #${pool.id}`}</h1>
-        <div className="mt-2">
-          {pool.verifiedBy ? (
-            <VerifiedBadge login={pool.verifiedBy} />
-          ) : (
-            <span className="text-xs text-ink-muted">Not verified on GitHub: check the repo&apos;s SECURITY.md links here.</span>
-          )}
+    <div className="fade-in">
+      {/* Header */}
+      <div className="geometric-bg px-6 sm:px-12 py-8">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-sm text-ink-muted">Security reports</p>
+          <h1 className="mt-1 text-3xl font-black tracking-tight">{pool.repoName ?? `Pool #${pool.id}`}</h1>
+          <div className="mt-2">
+            {pool.verifiedBy ? (
+              <VerifiedBadge login={pool.verifiedBy} />
+            ) : (
+              <span className="text-xs text-ink-muted">Not verified on GitHub: check the repo&apos;s SECURITY.md links here.</span>
+            )}
+          </div>
         </div>
+      </div>
 
+      <div className="mx-auto max-w-7xl px-6 sm:px-12 py-8 space-y-6">
+      <Card>
         {/* The three numbers answer: what do I risk, what can I win, how long do I wait. */}
-        <dl className="mt-5 divide-y divide-line border-y border-line">
+        <dl className="divide-y divide-line border-y border-line">
           <Row label="Deposit" value={<Amount value={pool.depositAmount} />} note="refunded if honest" />
           <Row label="Bounty pool" value={<Amount value={pool.available} />} note="available now" />
           <Row label="Response time" value={formatDuration(pool.timeout)} note="or your deposit returns" />
@@ -102,6 +108,7 @@ export default function PoolPage() {
         )}
         .
       </p>
+      </div>
     </div>
   );
 }

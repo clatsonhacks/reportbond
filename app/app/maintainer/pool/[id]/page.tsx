@@ -42,14 +42,18 @@ export default function MaintainerPool() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href="/maintainer" className="text-sm text-ink-muted hover:text-ink">
-          ← Maintainer console
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold break-words">{pool.repoName ?? `Pool #${pool.id}`}</h1>
+    <div className="fade-in">
+      {/* Header */}
+      <div className="geometric-bg px-6 sm:px-12 py-8">
+        <div className="mx-auto max-w-7xl">
+          <Link href="/maintainer" className="text-sm text-ink-muted hover:text-ink">
+            ← Maintainer console
+          </Link>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">{pool.repoName ?? `Pool #${pool.id}`}</h1>
+        </div>
       </div>
 
+      <div className="mx-auto max-w-7xl px-6 sm:px-12 py-8 space-y-6">
       {created && (
         <Notice tone="returned">
           Pool created. Add this to your repo&apos;s <span className="num">SECURITY.md</span> so reporters find it:
@@ -97,6 +101,7 @@ export default function MaintainerPool() {
 
         <PoolMoney pool={pool} isCreator={isCreator} onDone={refresh} />
       </WalletGate>
+      </div>
     </div>
   );
 }

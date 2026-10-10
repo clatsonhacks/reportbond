@@ -108,20 +108,25 @@ export default function ReportFlow() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href={`/pool/${pool.id}`} className="text-sm text-ink-muted hover:text-ink">
-          ← {pool.repoName ?? `Pool #${pool.id}`}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold break-words">Report with deposit</h1>
-        <ol className="mt-3 flex gap-4 text-sm" aria-label="Steps">
-          {[pool.verifiedBy ? "Your report" : "Advisory link", "Review", "Pay"].map((s, i) => (
-            <li key={s} className={step > i + 1 ? "text-returned" : step === i + 1 ? "font-medium" : "text-ink-muted"} aria-current={step === i + 1 ? "step" : undefined}>
-              <span className="num">{i + 1}.</span> {s}
-            </li>
-          ))}
-        </ol>
+    <div className="fade-in">
+      {/* Header */}
+      <div className="geometric-bg px-6 sm:px-12 py-8">
+        <div className="mx-auto max-w-7xl">
+          <Link href={`/pool/${pool.id}`} className="text-sm text-ink-muted hover:text-ink">
+            ← {pool.repoName ?? `Pool #${pool.id}`}
+          </Link>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Report with deposit</h1>
+          <ol className="mt-3 flex gap-4 text-sm" aria-label="Steps">
+            {[pool.verifiedBy ? "Your report" : "Advisory link", "Review", "Pay"].map((s, i) => (
+              <li key={s} className={step > i + 1 ? "text-returned" : step === i + 1 ? "font-medium" : "text-ink-muted"} aria-current={step === i + 1 ? "step" : undefined}>
+                <span className="num">{i + 1}.</span> {s}
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
+
+      <div className="mx-auto max-w-3xl px-6 sm:px-12 py-8 space-y-6">
 
       {step === 1 && feeDue && (
         <Card>
@@ -224,6 +229,7 @@ export default function ReportFlow() {
           <ButtonLink href={`/report/${reportId}`}>Track your report</ButtonLink>
         </Card>
       )}
+      </div>
     </div>
   );
 }

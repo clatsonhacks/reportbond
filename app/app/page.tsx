@@ -1,168 +1,232 @@
 import { ButtonLink } from "@/components/ui";
 import { PoolList } from "@/components/PoolList";
-import {
-  CheckBugIcon,
-  ReturnBugIcon,
-  WarningBugIcon,
-  ClockBugIcon,
-  ReportIcon,
-  VerdictIcon,
-  RewardIcon,
-  FlowArrow,
-} from "@/components/icons";
+import { PoolNetworkGraph } from "@/components/graph/PoolNetwork";
 
-const verdicts = [
+const steps = [
   {
-    name: "Valid",
-    meaning: "Real vulnerability found",
-    outcome: "Deposit + Bounty",
-    color: "text-returned",
-    bgColor: "bg-returned-bg",
-    Icon: CheckBugIcon,
+    number: "1",
+    title: "Bond your report",
+    description: "Link a private GitHub advisory and pay the pool's deposit plus a 1% fee.",
   },
   {
-    name: "Mistake",
-    meaning: "Honest but not exploitable",
-    outcome: "Deposit returned",
-    color: "text-returned",
-    bgColor: "bg-returned-bg",
-    Icon: ReturnBugIcon,
+    number: "2",
+    title: "Maintainer signs a verdict",
+    description: "Valid, honest mistake or slop. No answer before the deadline means automatic refund.",
   },
   {
-    name: "Slop",
-    meaning: "Low-effort or fake",
-    outcome: "Deposit kept",
-    color: "text-slashed",
-    bgColor: "bg-slashed-bg",
-    Icon: WarningBugIcon,
-  },
-  {
-    name: "Refunded",
-    meaning: "No response from maintainer",
-    outcome: "Auto-returned",
-    color: "text-ink-muted",
-    bgColor: "bg-surface",
-    Icon: ClockBugIcon,
+    number: "3",
+    title: "Withdraw",
+    description: "Claim your bond back, plus the bounty when the bug is valid.",
   },
 ];
 
 export default function Home() {
   return (
-    <div className="space-y-20">
-      {/* Hero Section - Bug Bounty Theme */}
-      <section className="geometric-bg relative -mx-6 px-6 py-24 sm:mx-0 sm:rounded-4xl sm:px-12 sm:py-32 fade-in">
-        <div className="relative z-10 mx-auto max-w-4xl">
-          <div className="text-center space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-xs font-bold uppercase tracking-widest text-ink-muted">
-              Bug Bounty Reports
+    <div>
+      {/* Hero Section - Full width */}
+      <section className="geometric-bg relative px-6 py-10 sm:px-12 sm:py-14 fade-in">
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
+            {/* Left: Text */}
+            <div className="max-w-lg space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-bg px-3 py-1 text-xs font-medium text-brand">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                Bug bounties on Arc - paid in USDC
+              </div>
+
+              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl">
+                Every report is bonded.
+                <span className="block">Real bugs get paid.</span>
+              </h1>
+
+              <p className="text-base leading-relaxed text-ink-muted">
+                Put down a small deposit with your report. Honest work gets it back, valid bugs earn the bounty on top, and slop forfeits it to the pool.
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <ButtonLink href="#pools">Find a pool</ButtonLink>
+                <ButtonLink href="/maintainer" variant="secondary">
+                  Fund a pool for your repo
+                </ButtonLink>
+              </div>
             </div>
 
-            <h1 className="text-6xl font-black leading-tight tracking-tight sm:text-7xl lg:text-8xl">
-              Report Bugs.
-              <span className="block text-ink-muted">Get Rewarded.</span>
-            </h1>
+            {/* Right: Mini constellation preview */}
+            <div className="hidden lg:block">
+              <div className="relative h-44 w-44 rounded-full border border-dashed border-brand/30">
+                {/* Pool hub center */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="node-hub h-12 w-12 flex items-center justify-center">
+                    <span className="num text-[10px] font-semibold text-white">100.00</span>
+                  </div>
+                </div>
+                {/* Orbiting report satellites */}
+                <div className="absolute left-2 top-4">
+                  <div className="node-satellite node-valid h-5 w-5 flex items-center justify-center">
+                    <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="absolute right-4 top-6">
+                  <div className="node-satellite node-waiting h-4 w-4" />
+                </div>
+                <div className="absolute bottom-8 left-6">
+                  <div className="node-satellite node-acknowledged h-4 w-4 relative">
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-acknowledged" />
+                  </div>
+                </div>
+                <div className="absolute bottom-4 right-2">
+                  <div className="node-satellite node-valid h-5 w-5 flex items-center justify-center">
+                    <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="absolute left-1/2 -translate-x-1/2 -top-1">
+                  <div className="node-satellite node-mistake h-4 w-4" />
+                </div>
+                <div className="absolute -right-1 bottom-14">
+                  <div className="node-satellite node-slop h-3.5 w-3.5 flex items-center justify-center">
+                    <svg className="h-2 w-2" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                </div>
+                {/* Connecting lines (decorative) */}
+                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 176 176">
+                  <line x1="88" y1="88" x2="28" y2="32" className="edge" />
+                  <line x1="88" y1="88" x2="148" y2="52" className="edge" />
+                  <line x1="88" y1="88" x2="48" y2="120" className="edge" />
+                  <line x1="88" y1="88" x2="152" y2="116" className="edge" />
+                  <line x1="88" y1="88" x2="88" y2="20" className="edge" />
+                  <line x1="88" y1="88" x2="160" y2="88" className="edge" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-            <p className="mx-auto max-w-2xl text-xl leading-relaxed text-ink-muted">
-              Put down a refundable USDC deposit. Find real bugs, earn bounties.
-              Submit slop, lose your deposit.
+          {/* How it works steps */}
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            {steps.map((step) => (
+              <div
+                key={step.number}
+                className="rounded-xl border border-line bg-card p-4"
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
+                    {step.number}
+                  </span>
+                  <h3 className="text-sm font-semibold">{step.title}</h3>
+                </div>
+                <p className="text-xs text-ink-muted leading-relaxed">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pool Network Graph */}
+      <section className="mx-auto max-w-7xl px-6 sm:px-12 py-10 space-y-4 slide-up">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-black tracking-tight">Pool network</h2>
+            <p className="text-sm text-ink-muted">
+              Each pool sits at the centre of its reports. Reporters who work across pools link them together.
             </p>
-
-            <div className="flex flex-wrap justify-center gap-4 pt-4">
-              <ButtonLink href="/maintainer">
-                Create Pool
-              </ButtonLink>
-              <ButtonLink href="#pools" variant="secondary">
-                Browse Pools
-              </ButtonLink>
-            </div>
           </div>
+          <div className="hidden sm:flex gap-1">
+            <button type="button" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-card">
+              Map
+            </button>
+            <button type="button" className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface state-change">
+              Grid
+            </button>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-line bg-card p-4">
+          <PoolNetworkGraph />
+        </div>
 
-          {/* Bug Verdicts Visual Tracker */}
-          <div className="mt-16 grid gap-4 sm:grid-cols-4">
-            {verdicts.map((v) => (
-              <div key={v.name} className="relative overflow-hidden rounded-2xl bg-card border-2 border-line p-6 text-center shadow-sm hover:shadow-lg state-change">
-                <div className="mb-4 flex justify-center">
-                  <v.Icon className="h-16 w-16 bug-wiggle" />
-                </div>
-                <h3 className="mb-1 text-sm font-bold uppercase tracking-wide">{v.name}</h3>
-                <p className="text-xs text-ink-muted">{v.outcome}</p>
-              </div>
-            ))}
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-muted">
+          <div className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-brand" />
+            Pool hub
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-valid" />
+            Valid
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-mistake" />
+            Mistake
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-slop" />
+            Slop
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full border-2 border-dashed border-refunded" />
+            Refunded
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full border-2 border-waiting" />
+            Waiting
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="relative h-3 w-3 rounded-full border-2 border-acknowledged">
+              <span className="absolute inset-1 rounded-full bg-acknowledged" />
+            </span>
+            Acknowledged
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-6 border-t-2 border-dashed border-brand" />
+            Your reports
           </div>
         </div>
       </section>
 
-      <section id="how-it-works" className="space-y-10 scroll-mt-8 slide-up">
-        <div className="text-center">
-          <h2 className="text-4xl font-black tracking-tight sm:text-5xl">How Bug Bounties Work</h2>
-          <p className="mt-3 text-lg text-ink-muted">Report → Verdict → Get Paid</p>
-        </div>
-
-        {/* Flow with visual connections */}
-        <div className="relative">
-          <ol className="grid gap-6 sm:grid-cols-3">
-            {[
-              {
-                title: "Report Bug",
-                body: "File your vulnerability report on GitHub, then submit it here with your deposit.",
-                Icon: ReportIcon,
-                number: "01",
-              },
-              {
-                title: "Get Verdict",
-                body: "Maintainer reviews and signs a verdict: Valid, Mistake, or Slop.",
-                Icon: VerdictIcon,
-                number: "02",
-              },
-              {
-                title: "Collect Reward",
-                body: "Valid bugs earn deposit + bounty. Mistakes get refunded. Slop is lost.",
-                Icon: RewardIcon,
-                number: "03",
-              },
-            ].map(({ title, body, Icon, number }) => (
-              <li key={title} className="card-hover group relative rounded-3xl border-2 border-line bg-card p-8">
-                <div className="mb-4 flex justify-center">
-                  <Icon className="h-16 w-16 float-slow" />
-                </div>
-                <div className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">{number}</div>
-                <h3 className="mb-3 text-2xl font-black tracking-tight">{title}</h3>
-                <p className="text-sm leading-relaxed text-ink-muted">{body}</p>
-              </li>
-            ))}
-          </ol>
-
-          {/* Flow arrows between steps */}
-          <div className="pointer-events-none absolute inset-0 hidden sm:block">
-            <FlowArrow className="absolute left-[28%] top-1/4 h-8 w-[18%]" />
-            <FlowArrow className="absolute left-[61%] top-1/4 h-8 w-[18%]" />
+      {/* Open Pools */}
+      <section id="pools" className="mx-auto max-w-7xl px-6 sm:px-12 pb-16 space-y-4 scroll-mt-8 slide-up">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-xl font-black tracking-tight">Open pools</h2>
+            <p className="text-xs text-ink-muted uppercase tracking-wider">Sample data</p>
           </div>
-        </div>
-
-        {/* Verdict Legend - Bug Tracking Style */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {verdicts.map((v) => (
-            <div key={v.name} className={`rounded-2xl border-2 ${v.bgColor} border-line p-6`}>
-              <div className="mb-4 flex justify-center">
-                <v.Icon className="h-12 w-12" />
-              </div>
-              <h4 className={`mb-2 text-lg font-black ${v.color}`}>{v.name}</h4>
-              <p className="mb-1 text-sm font-medium text-ink-muted">{v.meaning}</p>
-              <p className="text-xs text-ink-muted">→ {v.outcome}</p>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-sm text-ink-muted">
-          Verdicts are cryptographically signed by maintainers. No one can change or fake them.
-        </p>
-      </section>
-
-      <section id="pools" className="space-y-10 scroll-mt-8 slide-up">
-        <div className="text-center">
-          <h2 className="text-4xl font-black tracking-tight sm:text-5xl">Active Bug Bounty Pools</h2>
-          <p className="mt-3 text-lg text-ink-muted">Choose a repository and start hunting for vulnerabilities</p>
+          <div className="flex gap-1 overflow-x-auto">
+            <button type="button" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-card whitespace-nowrap">
+              Highest bounty
+            </button>
+            <button type="button" className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface state-change whitespace-nowrap">
+              Fastest response
+            </button>
+            <button type="button" className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface state-change whitespace-nowrap">
+              Lowest bond
+            </button>
+          </div>
         </div>
         <PoolList />
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-muted pt-2">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-valid" />
+            Valid
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-mistake" />
+            Honest mistake
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-slop" />
+            Slop
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-refunded" />
+            Auto-refunded
+          </div>
+        </div>
       </section>
     </div>
   );

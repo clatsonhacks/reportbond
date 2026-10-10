@@ -1,5 +1,6 @@
 "use client";
 
+import { RulesSummary } from "@/components/RulesSummary";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -45,6 +46,8 @@ export default function PoolPage() {
           <ButtonLink href={`/pool/${pool.id}/report`}>Report with deposit</ButtonLink>
         </div>
       </Card>
+
+      <RulesSummary pool={pool} />
 
       <details className="slide-up rounded-[8px] border border-line bg-card p-5 state-change">
         <summary className="cursor-pointer font-medium">How it works</summary>

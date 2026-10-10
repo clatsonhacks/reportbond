@@ -3,6 +3,7 @@
 //   GITHUB_API_URL=http://127.0.0.1:4010 GITHUB_WEB_URL=http://127.0.0.1:4010
 //   GITHUB_APP_ID, GITHUB_APP_SLUG, GITHUB_APP_PRIVATE_KEY, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
 //   GITHUB_WEBHOOK_SECRET, CRON_SECRET
+//   and for the agents: AI_PROVIDER=groq GROQ_API_KEY=mock GROQ_BASE_URL=http://127.0.0.1:4010
 // Run with the same env: NETWORK=local pnpm test:github
 import "../jobs/env";
 import { createHmac, createPublicKey, createVerify } from "node:crypto";
@@ -77,13 +78,66 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     return send(201, { token: "inst-token", expires_at: new Date(Date.now() + 3600_000).toISOString() });
   }
   const m = url.pathname.match(/^\/repos\/([^/]+\/[^/]+)\/security-advisories\/(GHSA-[\w-]+)$/);
+  if (req.method === "GET" && m) {
+    return send(200, {
+      ghsa_id: m[2],
+      state: "triage",
+      severity: "high",
+      summary: "Overflow in read_name()",
+      description: "read_name() in src/app.c:3 copies input without a length check. Reproduce with a 200 byte name.",
+      cwe_ids: [],
+      vulnerabilities: [],
+    });
+  }
   if (req.method === "PATCH" && m) {
     if (auth !== "Bearer inst-token") return send(401, { message: "bad installation token" });
     patches.push({ repo: m[1], ghsa: m[2], state: JSON.parse(body).state });
     return send(200, {});
   }
+  // The repository the agents read.
+  if (url.pathname === `/repos/${REPO}`) return send(200, { full_name: REPO, default_branch: "main", description: "Demo", language: "C" });
+  if (url.pathname === `/repos/${REPO}/git/trees/main`) {
+    return send(200, { truncated: false, tree: Object.keys(REPO_FILES).map((f) => ({ path: f, type: "blob" })) });
+  }
+  if (url.pathname.startsWith(`/repos/${REPO}/contents/`)) {
+    const file = decodeURIComponent(url.pathname.slice(`/repos/${REPO}/contents/`.length));
+    if (!(file in REPO_FILES)) return send(404, { message: "Not Found" });
+    return send(200, { type: "file", encoding: "base64", size: REPO_FILES[file].length, content: Buffer.from(REPO_FILES[file]).toString("base64") });
+  }
+  if (url.pathname === "/search/code") return send(200, { items: [] });
+  // The model (Groq-compatible), answering by which schema was asked for.
+  if (req.method === "POST" && url.pathname === "/chat/completions") {
+    const name = JSON.parse(body).response_format?.json_schema?.name as string;
+    modelCalls.push(name);
+    const answer =
+      name === "rulebook"
+        ? CANNED_RULES
+        : name === "triage"
+          ? { verdict: "valid", confidence: 0.9, severity: "high", summary: "Unchecked copy in read_name.", evidence: [], inScope: true, injectionSuspected: false }
+          : { agrees: true, confidence: 0.85, issues: [], injectionSuspected: false };
+    return send(200, { model: "mock-model", choices: [{ finish_reason: "stop", message: { content: JSON.stringify(answer) } }] });
+  }
   send(404, { message: `mock: no route ${req.method} ${url.pathname}` });
 });
+
+const REPO_FILES: Record<string, string> = {
+  "README.md": "# demo",
+  "src/app.c": "#include <string.h>\nvoid read_name(char *dst, const char *src) {\n  strcpy(dst, src);\n}\n",
+};
+const modelCalls: string[] = [];
+const CANNED_RULES = {
+  summary: "Demo project bounty.",
+  inScope: ["src/"],
+  outOfScope: ["tests/"],
+  severity: [
+    { level: "low", description: "Minor", payoutPercent: 10 },
+    { level: "medium", description: "DoS", payoutPercent: 25 },
+    { level: "high", description: "Memory corruption", payoutPercent: 50 },
+    { level: "critical", description: "Code execution", payoutPercent: 100 },
+  ],
+  validCriteria: ["Reproduction steps"],
+  slopSignals: ["Cites code that does not exist"],
+};
 
 // ------------------------------------------------------------------ helpers
 
@@ -295,6 +349,80 @@ async function main() {
   const gsync = cron.body.github as { synced: string[]; failed: unknown[] } | undefined;
   check("hourly cron finds nothing left to sync", gsync?.synced.length === 0 && gsync?.failed.length === 0, cron.body);
   check("each advisory was patched exactly once", patches.filter((x) => x.ghsa === A).length === 1 && patches.filter((x) => x.ghsa === C).length === 1, patches);
+
+  console.log("Rules and AI review");
+  const rulesUrl = `/api/pools/${poolId}/rules`;
+  const r0 = await call(rulesUrl);
+  check("no rules yet; the AI is configured", r0.body.published === null && r0.body.aiConfigured === true, r0.body);
+  check(
+    "drafting needs the pool creator",
+    (await call(`${rulesUrl}/draft`, { json: {} })).status === 401 &&
+      (await call(`${rulesUrl}/draft`, { json: {}, headers: await bearer(stranger) })).status === 403,
+  );
+  const drafted = await call(`${rulesUrl}/draft`, { json: { about: "A demo", focus: "memory safety" }, headers: auth });
+  const draftRules = drafted.body.rules as typeof CANNED_RULES;
+  check("the setup agent returns a draft", drafted.status === 200 && draftRules?.severity?.length === 4, drafted.body);
+  check("the creator sees the saved draft", ((await call(rulesUrl, { headers: auth })).body.draft as { summary?: string })?.summary === CANNED_RULES.summary);
+  check("the public never sees a draft", !("draft" in (await call(rulesUrl)).body));
+  check("saving rules with missing fields is refused", (await call(rulesUrl, { method: "PUT", body: JSON.stringify({ rules: { summary: "x" } }), headers: auth })).status === 400);
+  const edited = { ...draftRules, summary: "Edited by the maintainer." };
+  check("the creator saves an edited draft", (await call(rulesUrl, { method: "PUT", body: JSON.stringify({ rules: edited }), headers: auth })).status === 200);
+  check("a stranger cannot publish", (await call(`${rulesUrl}/publish`, { json: {}, headers: await bearer(stranger) })).status === 403);
+  const pub = await call(`${rulesUrl}/publish`, { json: {}, headers: auth });
+  const md = String(pub.body.securityMd ?? "");
+  check(
+    "publish creates version 1 with a SECURITY.md",
+    pub.body.version === 1 && md.includes("Edited by the maintainer.") && md.includes(`/pool/${poolId}`) && md.includes("5.00 USDC"),
+    pub.body,
+  );
+  check(
+    "publish links to GitHub's editor on the default branch",
+    String(pub.body.commitUrl).startsWith(`https://github.com/${REPO}/new/main?filename=SECURITY.md`),
+    pub.body.commitUrl,
+  );
+  const r1 = await call(rulesUrl);
+  check("the published rules are public", (r1.body.published as { version: number })?.version === 1, r1.body);
+  const mdRes = await fetch(`${BASE}/api/pools/${poolId}/security-md`);
+  check(
+    "SECURITY.md is served as markdown",
+    mdRes.status === 200 && (mdRes.headers.get("content-type") ?? "").includes("markdown") && (await mdRes.text()).includes("# Security Policy"),
+  );
+  const badge = await fetch(`${BASE}/api/badge/${poolId}`);
+  const svg = await badge.text();
+  check("the badge is an SVG with the bounty and deposit", badge.status === 200 && svg.includes("<svg") && svg.includes("bug bounty") && svg.includes("deposit 5.00"), svg.slice(0, 120));
+
+  const triageUrl = (id: string) => `/api/github/reports/${id}/triage?pool=${poolId}`;
+  check("AI review needs the pool creator", (await call(triageUrl(B), { json: {}, headers: await bearer(stranger) })).status === 403);
+  check("AI review of an unknown report -> 404", (await call(triageUrl("GHSA-9999-9999-9999"), { json: {}, headers: auth })).status === 404);
+  const tri = await call(triageUrl(B), { json: {}, headers: auth });
+  const run = tri.body.run as {
+    error?: string;
+    rulesVersion: number;
+    grounding: { missingShare: number | null };
+    recommendation: { verdict: string; needsHuman: boolean; suggestedBountyPercent: number } | null;
+  };
+  check(
+    "AI review returns a recommendation judged against version 1",
+    tri.status === 200 && !run?.error && run?.rulesVersion === 1 && run?.recommendation?.verdict === "valid",
+    tri.body,
+  );
+  check("grounding ran against the repository (cited file and line exist)", run?.grounding?.missingShare === 0, run?.grounding);
+  check(
+    "a valid recommendation needs the maintainer and suggests the table's share",
+    run?.recommendation?.needsHuman === true && run?.recommendation?.suggestedBountyPercent === 50,
+    run?.recommendation,
+  );
+  check(
+    "both reviewers were called once each",
+    modelCalls.filter((c) => c === "triage").length === 1 && modelCalls.filter((c) => c === "triage_review").length === 1,
+    modelCalls,
+  );
+  const withTriage = ((await call(`/api/github/reports?pool=${poolId}`, { headers: auth })).body.reports ?? []) as { ghsa: string; triage: unknown }[];
+  check(
+    "the report list carries the latest review",
+    withTriage.find((x) => x.ghsa === B)?.triage !== null && withTriage.find((x) => x.ghsa === A)?.triage === null,
+    withTriage.map((x) => [x.ghsa, Boolean(x.triage)]),
+  );
 
   const logout = await call("/api/github/logout", { json: {}, cookie: session });
   const s2 = await call("/api/github/session", { cookie: session });

@@ -45,6 +45,27 @@ export async function setState(state: string): Promise<void> {
   (await cookies()).set(STATE_COOKIE, state, { ...cookieOptions, maxAge: 600 });
 }
 
+const NEXT_COOKIE = "rb_gh_next";
+
+/** Only same-site paths: "/pool/3/report", never "//evil.example" or a full URL. */
+export function safeNext(next: string | null | undefined): string | null {
+  return next && /^\/(?![/\\])[\w\-./?=&%#]*$/.test(next) ? next : null;
+}
+
+/** Remember where to send the user after GitHub sign-in. */
+export async function setNext(next: string | null): Promise<void> {
+  const jar = await cookies();
+  if (next) jar.set(NEXT_COOKIE, next, { ...cookieOptions, maxAge: 600 });
+  else jar.delete(NEXT_COOKIE);
+}
+
+export async function takeNext(): Promise<string | null> {
+  const jar = await cookies();
+  const v = jar.get(NEXT_COOKIE)?.value;
+  jar.delete(NEXT_COOKIE);
+  return safeNext(v);
+}
+
 export async function takeState(): Promise<string | undefined> {
   const jar = await cookies();
   const v = jar.get(STATE_COOKIE)?.value;

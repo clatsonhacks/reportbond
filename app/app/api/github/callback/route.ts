@@ -1,10 +1,15 @@
 // GitHub sends the maintainer back here after installing the app or signing in.
 import { adminRepos, exchangeCode } from "@/lib/server/github";
-import { createSession, takeState } from "@/lib/server/githubSession";
+import { createSession, takeNext, takeState } from "@/lib/server/githubSession";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const back = (status: string) => Response.redirect(new URL(`/maintainer?github=${status}`, url.origin), 302);
+  const next = await takeNext();
+  const back = (status: string) => {
+    const to = new URL(next ?? "/maintainer", url.origin);
+    to.searchParams.set("github", status);
+    return Response.redirect(to, 302);
+  };
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const expected = await takeState();
@@ -14,7 +19,8 @@ export async function GET(req: Request) {
   try {
     const { login, repos } = await adminRepos(await exchangeCode(code));
     await createSession(login, repos);
-    return back(repos.length ? "connected" : "no-repos");
+    // "no-repos" only matters to maintainers; a reporter coming back to the report flow is just signed in.
+    return back(repos.length || next ? "connected" : "no-repos");
   } catch (e) {
     console.error("[github] sign-in failed:", e);
     return back("failed");

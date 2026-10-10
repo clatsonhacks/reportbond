@@ -253,6 +253,8 @@ export type GithubData = {
   sessions: Record<string, { login: string; repos: GithubRepo[]; expiresAt: number }>;
   /** Recent webhook delivery IDs, so a redelivered webhook is applied once. */
   deliveries: string[];
+  /** GitHub account linked to a wallet (lowercase address), proven by a GitHub session plus a wallet signature. */
+  walletLinks?: Record<string, { login: string; linkedAt: number }>;
 };
 
 export const emptyGithub = (): GithubData => ({

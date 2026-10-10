@@ -2,7 +2,7 @@
 // The loop decides nothing by itself; callers turn the findings into a structured answer afterwards.
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { AiError, aiModel, aiProvider, groqChat, type GroqMessage } from "./ai";
+import { AiError, aiModel, aiProvider, groqChat, modelsFor, type GroqMessage } from "./ai";
 
 export type AgentTool = {
   name: string;
@@ -75,6 +75,7 @@ async function investigateGroq(opts: Options): Promise<{ notes: string; steps: A
   ];
   const steps: AgentStep[] = [...(opts.seedSteps ?? [])];
   let model = aiModel();
+  const models = modelsFor("investigate");
 
   // What the tools returned, kept so the final answer can be asked for in a clean request.
   const transcript: string[] = [];
@@ -83,7 +84,8 @@ async function investigateGroq(opts: Options): Promise<{ notes: string; steps: A
     if (round >= maxRounds || steps.length >= maxCalls) {
       // Out of budget. Ask for the findings in a fresh request with no tools in it: with tools still
       // on offer, models sometimes try one more call, which the API rejects.
-      const res = await groqChat({
+      const res = await groqChat(
+        {
         messages: [
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
@@ -91,11 +93,13 @@ async function investigateGroq(opts: Options): Promise<{ notes: string; steps: A
         ],
         reasoning_effort: opts.effort ?? "high",
         max_completion_tokens: 3000,
-      });
+        },
+        models,
+      );
       return { notes: (res.choice.message?.content ?? "").trim(), steps, model: res.model };
     }
 
-    const res = await groqChat({ messages, tools, tool_choice: "auto", reasoning_effort: opts.effort ?? "high", max_completion_tokens: 3000 });
+    const res = await groqChat({ messages, tools, tool_choice: "auto", reasoning_effort: opts.effort ?? "high", max_completion_tokens: 3000 }, models);
     model = res.model;
     const msg = res.choice.message ?? {};
     const calls = msg.tool_calls ?? [];

@@ -91,7 +91,7 @@ export async function draftRulebook(
     .filter(Boolean)
     .join("\n");
 
-  const { output, model } = await askStructured({ schema: RulebookSchema, name: "rulebook", system: SYSTEM, user, effort: "medium" });
+  const { output, model } = await askStructured({ schema: RulebookSchema, name: "rulebook", role: "setup", system: SYSTEM, user, effort: "medium" });
   return { rules: normalise(output), model };
 }
 

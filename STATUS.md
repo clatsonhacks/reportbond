@@ -65,7 +65,7 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Reporters sign in with GitHub from the report flow and return to it
 - [x] A wallet is linked to a GitHub account only with both proofs at once: a GitHub session and a wallet signature
 - [x] The maintainer's tracker shows, per report, whether the deposit came from the account that filed it, from a wallet linked to someone else, or from an unlinked wallet
-- [x] One sign-in page (`/login`): GitHub, then wallet, then one signature that links them. The header shows the signed-in GitHub account on every page
+- [x] One sign-in page (`/login`): GitHub, then wallet. Once both are connected the wallet is asked for one free signature that proves ownership and links them. The header shows the signed-in GitHub account on every page
 - [ ] Not enforced: linking is optional, and a mismatch is shown to the maintainer, not blocked
 
 ### Testing

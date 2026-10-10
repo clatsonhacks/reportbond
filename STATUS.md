@@ -70,7 +70,8 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Reports are pulled from GitHub on demand as well as by webhook, so the tracker works without webhooks (local development) and catches missed deliveries
 - [x] Each tracked report carries the reporter's history and tags for the maintainer: "Trusted reporter", "Flagged", "First report here", "Paid by the filer", "Paid by someone else", "No deposit"
 - [ ] Wallet linking is still optional, and a mismatch between the paying wallet and the filer is shown to the maintainer, not blocked. The contract itself accepts any deposit; the restriction above is in the app
-- [ ] Not built yet: CAPTCHA and other bot checks on the report flow, a small non-refundable filing fee through Circle Nanopayments
+- [x] Optional filing fee through Circle Gateway nanopayments (see the [README](README.md#filing-fee-circle-gateway-nanopayments)). Off unless `FILING_FEE_USDC` and `FILING_FEE_RECIPIENT` are set. Paid with a signature after a one-time Gateway top-up, charged once per report, and shown to the maintainer as a tag. A real 0.001 USDC fee was paid on Arc Testnet with `pnpm try:nano` (about 0.6 s, and the same signature was refused the second time). The browser steps (top-up and signature in a wallet) have not been clicked through yet
+- [ ] Not built yet: CAPTCHA and other bot checks on the report flow, a screen for the fee recipient to withdraw from Gateway
 
 ### Testing
 

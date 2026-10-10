@@ -92,6 +92,19 @@ cd app && NETWORK=local pnpm e2e     # scenarios A–E through the API, relayer 
 
 After changing the contract: `forge build`, then `pnpm sync-abi` in `app/`.
 
+## Filing fee (Circle Gateway nanopayments)
+
+Optional and off by default. Set `FILING_FEE_USDC` (for example `0.001`) and `FILING_FEE_RECIPIENT` to charge a small, non-refundable fee before the deposit. The deposit stays the real bond and is still refunded as before; the fee makes mass-filing cost something even when every deposit would come back.
+
+How it works:
+
+1. The reporter picks a report. Once the app has confirmed they may pay for it, `/api/advisory/check` answers `402 Payment Required` with what to pay (the [x402](https://www.x402.org) convention).
+2. The reporter's wallet keeps a small USDC balance in Circle's Gateway Wallet contract. The first time, the app asks for one top-up (an approval and a deposit, both on-chain), enough for twenty fees.
+3. The fee itself is a signature only: no gas and no transaction. The app sends it to Circle Gateway, which checks it, moves the amount to the recipient's Gateway balance, and settles many such payments on-chain in one batch.
+4. The fee is charged once per report, and the maintainer's tracker shows "Filing fee paid".
+
+The recipient's fees accumulate in its Gateway balance, not its wallet; withdrawing them is done with Circle's Gateway tools and isn't built into this app. With the fee on, `pnpm e2e` would be asked for the fee too, so leave it off when running the scenarios.
+
 ## Tests
 
 Run from `app/`:
@@ -104,5 +117,6 @@ Run from `app/`:
 | `pnpm try:agents owner/repo [report.md ...]` | The agents on a real repo the GitHub App can read | GitHub App installed, a model key |
 | `pnpm test:db` | Storage, on files or Postgres | `NETWORK=local` |
 | `pnpm test:github-setup` | One-click GitHub App setup against a mock GitHub | a dev server pointed at the mock |
-| `pnpm test:github` | GitHub connect, verified pools, webhooks, reporter identity, rules and AI review | anvil, a dev server pointed at the mock |
+| `pnpm test:github` | GitHub connect, verified pools, webhooks, reporter identity, rules and AI review; the filing fee too when `FILING_FEE_USDC` is set | anvil, a dev server pointed at the mock |
+| `pnpm try:nano` | One real filing fee through Circle Gateway on Arc Testnet | the test reporter wallet with a little USDC |
 | `pnpm e2e` | Deposit, verdict, refund and withdraw scenarios | anvil or testnet wallets |

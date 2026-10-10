@@ -1,24 +1,71 @@
 @import "tailwindcss";
 
-/* Force light mode - monochromatic minimalist design */
+/* Force light mode - graph-first design system */
 :root {
   color-scheme: light only;
+
+  /* Core neutrals */
   --ink: #000000;
   --ink-muted: #6b7280;
   --surface: #f5f5f5;
   --card: #ffffff;
   --line: #e5e7eb;
-  --accent: #111827;
+
+  /* Brand accent - Indigo with Sky glow */
+  --brand: #4f46e5;
+  --brand-light: #818cf8;
+  --brand-glow: #0ea5e9;
+  --brand-bg: #eef2ff;
+  --accent: #4f46e5;
   --accent-ink: #ffffff;
-  --returned: #10b981;
-  --returned-bg: #d1fae5;
-  --waiting: #f59e0b;
-  --waiting-bg: #fef3c7;
-  --slashed: #ef4444;
+
+  /* Status: Waiting (Slate) */
+  --waiting: #64748b;
+  --waiting-text: #475569;
+  --waiting-bg: #f1f5f9;
+
+  /* Status: Acknowledged (Blue) */
+  --acknowledged: #2563eb;
+  --acknowledged-text: #1d4ed8;
+  --acknowledged-bg: #dbeafe;
+
+  /* Status: Valid (Green) */
+  --valid: #16a34a;
+  --valid-text: #15803d;
+  --valid-bg: #dcfce7;
+  --returned: #16a34a;
+  --returned-bg: #dcfce7;
+
+  /* Status: Mistake (Amber) */
+  --mistake: #d97706;
+  --mistake-text: #b45309;
+  --mistake-bg: #fef3c7;
+
+  /* Status: Slop (Red) */
+  --slop: #dc2626;
+  --slop-text: #b91c1c;
+  --slop-bg: #fee2e2;
+  --slashed: #dc2626;
   --slashed-bg: #fee2e2;
-  --testnet: #8b5cf6;
+
+  /* Status: Refunded / Keeper (Violet) */
+  --refunded: #7c3aed;
+  --refunded-text: #6d28d9;
+  --refunded-bg: #ede9fe;
+  --testnet: #7c3aed;
   --testnet-bg: #ede9fe;
-  --focus: #6366f1;
+
+  /* Graph edges */
+  --edge: #c7d2fe;
+  --edge-money: #4f46e5;
+  --edge-dashed: #94a3b8;
+
+  /* Focus & selection */
+  --focus: #4f46e5;
+  --selection-ring: #4f46e5;
+  --selection-glow: rgba(79, 70, 229, 0.2);
+
+  /* Hero / background */
   --hero-bg: #f7f7f7;
   --hero-line: #d5d5d5;
   --hero-line-2: #e0e0e0;
@@ -27,25 +74,71 @@
   --shadow-soft: rgba(0, 0, 0, 0.08);
 }
 
-/* Dark theme: same monochrome look, inverted. Every colour above goes through these tokens. */
+/* Dark theme: same visual language, inverted */
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Core neutrals */
     --ink: #f3f4f6;
     --ink-muted: #9ca3af;
     --surface: #0d0d0f;
     --card: #17171a;
     --line: #2a2a2f;
-    --accent: #f3f4f6;
-    --accent-ink: #111827;
-    --returned: #34d399;
-    --returned-bg: #0f2a20;
-    --waiting: #fbbf24;
-    --waiting-bg: #2a210c;
+
+    /* Brand accent */
+    --brand: #818cf8;
+    --brand-light: #a5b4fc;
+    --brand-glow: #38bdf8;
+    --brand-bg: #1e1b4b;
+    --accent: #818cf8;
+    --accent-ink: #0f0f12;
+
+    /* Status: Waiting (Slate) */
+    --waiting: #94a3b8;
+    --waiting-text: #cbd5e1;
+    --waiting-bg: #1e293b;
+
+    /* Status: Acknowledged (Blue) */
+    --acknowledged: #60a5fa;
+    --acknowledged-text: #93c5fd;
+    --acknowledged-bg: #1e3a5f;
+
+    /* Status: Valid (Green) */
+    --valid: #4ade80;
+    --valid-text: #86efac;
+    --valid-bg: #14532d;
+    --returned: #4ade80;
+    --returned-bg: #14532d;
+
+    /* Status: Mistake (Amber) */
+    --mistake: #fbbf24;
+    --mistake-text: #fcd34d;
+    --mistake-bg: #451a03;
+
+    /* Status: Slop (Red) */
+    --slop: #f87171;
+    --slop-text: #fca5a5;
+    --slop-bg: #450a0a;
     --slashed: #f87171;
-    --slashed-bg: #2c1414;
-    --testnet: #c4b5fd;
-    --testnet-bg: #241a3a;
-    --focus: #a5b4fc;
+    --slashed-bg: #450a0a;
+
+    /* Status: Refunded / Keeper (Violet) */
+    --refunded: #a78bfa;
+    --refunded-text: #c4b5fd;
+    --refunded-bg: #2e1065;
+    --testnet: #a78bfa;
+    --testnet-bg: #2e1065;
+
+    /* Graph edges */
+    --edge: #3730a3;
+    --edge-money: #818cf8;
+    --edge-dashed: #64748b;
+
+    /* Focus & selection */
+    --focus: #818cf8;
+    --selection-ring: #818cf8;
+    --selection-glow: rgba(129, 140, 248, 0.3);
+
+    /* Hero / background */
     --hero-bg: #111114;
     --hero-line: #26262b;
     --hero-line-2: #222226;
@@ -56,21 +149,60 @@
 }
 
 @theme inline {
+  /* Core neutrals */
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-surface: var(--surface);
   --color-card: var(--card);
   --color-line: var(--line);
+
+  /* Brand */
+  --color-brand: var(--brand);
+  --color-brand-light: var(--brand-light);
+  --color-brand-glow: var(--brand-glow);
+  --color-brand-bg: var(--brand-bg);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+
+  /* Status colors */
+  --color-waiting: var(--waiting);
+  --color-waiting-text: var(--waiting-text);
+  --color-waiting-bg: var(--waiting-bg);
+
+  --color-acknowledged: var(--acknowledged);
+  --color-acknowledged-text: var(--acknowledged-text);
+  --color-acknowledged-bg: var(--acknowledged-bg);
+
+  --color-valid: var(--valid);
+  --color-valid-text: var(--valid-text);
+  --color-valid-bg: var(--valid-bg);
   --color-returned: var(--returned);
   --color-returned-bg: var(--returned-bg);
-  --color-waiting: var(--waiting);
-  --color-waiting-bg: var(--waiting-bg);
+
+  --color-mistake: var(--mistake);
+  --color-mistake-text: var(--mistake-text);
+  --color-mistake-bg: var(--mistake-bg);
+
+  --color-slop: var(--slop);
+  --color-slop-text: var(--slop-text);
+  --color-slop-bg: var(--slop-bg);
   --color-slashed: var(--slashed);
   --color-slashed-bg: var(--slashed-bg);
+
+  --color-refunded: var(--refunded);
+  --color-refunded-text: var(--refunded-text);
+  --color-refunded-bg: var(--refunded-bg);
   --color-testnet: var(--testnet);
   --color-testnet-bg: var(--testnet-bg);
+
+  /* Graph */
+  --color-edge: var(--edge);
+  --color-edge-money: var(--edge-money);
+  --color-edge-dashed: var(--edge-dashed);
+  --color-selection-ring: var(--selection-ring);
+  --color-selection-glow: var(--selection-glow);
+
+  /* Typography */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-face), ui-monospace, monospace;
   --radius-card: 8px;
@@ -311,4 +443,226 @@ body {
 
 .shadow-minimal-xl {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================
+   Graph Visualization System
+   ============================================ */
+
+/* Graph container - dotted canvas background */
+.graph-canvas {
+  background-image: radial-gradient(circle, var(--line) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 0 0;
+}
+
+/* Node base styles */
+.graph-node {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hub node (pools) - sized by balance, gradient core */
+.node-hub {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-glow) 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px var(--selection-glow);
+}
+
+/* Satellite node (reports) */
+.node-satellite {
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+/* Node states by status */
+.node-waiting {
+  background: transparent;
+  border-color: var(--waiting);
+  color: var(--waiting);
+}
+
+.node-acknowledged {
+  background: transparent;
+  border-color: var(--acknowledged);
+  color: var(--acknowledged);
+}
+
+.node-acknowledged::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: var(--acknowledged);
+  border-radius: 50%;
+}
+
+.node-valid {
+  background: var(--valid);
+  border-color: var(--valid);
+  color: var(--card);
+}
+
+.node-mistake {
+  background: var(--mistake);
+  border-color: var(--mistake);
+  color: var(--card);
+}
+
+.node-slop {
+  background: var(--slop-bg);
+  border-color: var(--slop);
+  color: var(--slop);
+}
+
+.node-refunded {
+  background: transparent;
+  border-color: var(--refunded);
+  border-style: dashed;
+  color: var(--refunded);
+}
+
+/* Selection state - indigo ring + glow */
+.node-selected {
+  box-shadow: 0 0 0 3px var(--selection-ring), 0 0 20px var(--selection-glow);
+}
+
+/* Node halo (soft radial glow) */
+.node-halo {
+  position: relative;
+}
+
+.node-halo::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  background: radial-gradient(circle, var(--selection-glow) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: -1;
+}
+
+/* Graph edges */
+.edge {
+  stroke: var(--edge);
+  stroke-width: 1.5px;
+  fill: none;
+}
+
+.edge-dashed {
+  stroke: var(--edge-dashed);
+  stroke-dasharray: 6 4;
+}
+
+.edge-money {
+  stroke: var(--edge-money);
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 4px var(--selection-glow));
+}
+
+/* Edge label tags */
+.edge-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink-muted);
+}
+
+/* Deadline ring (dashed circle around pool) */
+.deadline-ring {
+  stroke: var(--edge-dashed);
+  stroke-width: 1px;
+  stroke-dasharray: 8 4;
+  fill: none;
+}
+
+/* Keeper band (violet zone beyond deadline) */
+.keeper-band {
+  fill: var(--refunded-bg);
+  opacity: 0.5;
+}
+
+/* Connector node (wallet linking reports) */
+.node-connector {
+  background: var(--card);
+  border: 2px solid var(--brand);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+/* Payout path animation */
+@keyframes payoutFlow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.edge-payout {
+  stroke: var(--valid);
+  stroke-width: 3px;
+  stroke-dasharray: 12 6;
+  animation: payoutFlow 1s linear infinite;
+}
+
+/* Brand button variant */
+.btn-brand {
+  background: var(--brand);
+  color: white;
+  border-radius: 9999px;
+  padding: 12px 24px;
+  font-weight: 500;
+  transition: all 200ms ease;
+}
+
+.btn-brand:hover {
+  background: var(--brand-light);
+  box-shadow: 0 0 20px var(--selection-glow);
+}
+
+.btn-brand:active {
+  transform: scale(0.98);
+}
+
+/* Status pill updates for new colors */
+.pill-waiting {
+  background: var(--waiting-bg);
+  color: var(--waiting-text);
+  border-color: var(--waiting);
+}
+
+.pill-acknowledged {
+  background: var(--acknowledged-bg);
+  color: var(--acknowledged-text);
+  border-color: var(--acknowledged);
+}
+
+.pill-valid {
+  background: var(--valid-bg);
+  color: var(--valid-text);
+  border-color: var(--valid);
+}
+
+.pill-mistake {
+  background: var(--mistake-bg);
+  color: var(--mistake-text);
+  border-color: var(--mistake);
+}
+
+.pill-slop {
+  background: var(--slop-bg);
+  color: var(--slop-text);
+  border-color: var(--slop);
+}
+
+.pill-refunded {
+  background: var(--refunded-bg);
+  color: var(--refunded-text);
+  border-color: var(--refunded);
 }

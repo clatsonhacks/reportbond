@@ -8,7 +8,9 @@ import { connectHref, useGithubSession, type TrackedReportView } from "@/lib/git
 import { formatDate } from "@/lib/format";
 import type { PoolView } from "@/lib/types";
 import { useSignIn } from "@/lib/useSignIn";
+import type { TriageRun } from "@/lib/rules";
 import { StatusPill } from "./StatusPill";
+import { TriageResult } from "./TriageResult";
 import { Button, buttonStyles, Card, Empty, Notice } from "./ui";
 import { VerifiedBadge } from "./VerifiedBadge";
 
@@ -25,6 +27,7 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
   const qc = useQueryClient();
   const [reports, setReports] = useState<TrackedReportView[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (!github.data?.configured || !isCreator) {
@@ -58,6 +61,22 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
       setError((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function review(ghsa: string) {
+    setReviewing(ghsa);
+    setError(null);
+    try {
+      const token = await signIn();
+      const res = await post<{ run: TriageRun }>(`/api/github/reports/${ghsa}/triage?pool=${pool.id}`, {}, {
+        authorization: `Bearer ${token}`,
+      });
+      setReports((list) => list?.map((r) => (r.ghsa === ghsa ? { ...r, triage: res.run } : r)) ?? list);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReviewing(null);
     }
   }
 
@@ -109,7 +128,8 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
       ) : (
         <ul className="divide-y divide-line rounded-[8px] border border-line">
           {reports.map((r) => (
-            <li key={r.ghsa} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+            <li key={r.ghsa} className="space-y-3 px-4 py-3 text-sm">
+             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="space-y-0.5">
                 <a href={r.url} target="_blank" rel="noreferrer" className="num font-medium hover:underline">
                   {r.ghsa} ↗
@@ -129,7 +149,15 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
                     <StatusPill status={r.status} />
                   </Link>
                 )}
+                <Button variant="secondary" onClick={() => review(r.ghsa)} disabled={reviewing !== null}>
+                  {reviewing === r.ghsa ? "Reviewing…" : r.triage ? "Review again" : "Review with AI"}
+                </Button>
               </div>
+             </div>
+              {reviewing === r.ghsa && (
+                <p className="text-ink-muted">Checking the report against the repository. This takes up to a minute.</p>
+              )}
+              {r.triage && reviewing !== r.ghsa && <TriageResult run={r.triage} />}
             </li>
           ))}
         </ul>

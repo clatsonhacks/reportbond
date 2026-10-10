@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Hex } from "viem";
 import { useAccount, useSignTypedData, useWriteContract } from "wagmi";
 import { GithubReports } from "@/components/GithubReports";
+import { RulesEditor } from "@/components/RulesEditor";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, Card, Empty, Loading, Notice, Row } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
@@ -91,6 +92,8 @@ export default function MaintainerPool() {
         </section>
 
         <GithubReports pool={pool} isCreator={isCreator} />
+
+        {isCreator && <RulesEditor pool={pool} />}
 
         <PoolMoney pool={pool} isCreator={isCreator} onDone={refresh} />
       </WalletGate>

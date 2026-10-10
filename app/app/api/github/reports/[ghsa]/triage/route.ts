@@ -24,5 +24,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ ghsa: s
   if (!aiConfigured()) return bad("The AI isn't set up on this server", 503);
 
   const run = await runTriage(verified.installationId, verified.repo, ghsa, rules);
-  return json({ run }, run.error ? 502 : 200);
+  // A failed run is still a result the maintainer should see (run.error says why).
+  return json({ run });
 }

@@ -14,7 +14,8 @@
     "test:db": "tsx --conditions=react-server scripts/test-db.ts",
     "preflight": "tsx --conditions=react-server scripts/preflight.ts",
     "check:deploy": "tsx scripts/check-deployment.ts",
-    "test:github": "tsx --conditions=react-server scripts/test-github.ts"
+    "test:github": "tsx --conditions=react-server scripts/test-github.ts",
+    "test:github-setup": "tsx scripts/test-github-setup.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",

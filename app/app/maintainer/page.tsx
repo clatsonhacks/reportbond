@@ -18,6 +18,7 @@ import { config } from "@/lib/network";
 import { useSignIn } from "@/lib/useSignIn";
 import { useTx } from "@/lib/useTx";
 
+const DEPOSIT_PRESETS = ["0.001", "0.01", "0.1", "1"];
 const REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 
 export default function Maintainer() {
@@ -57,7 +58,8 @@ function CreatePool() {
 
   const [repo, setRepo] = useState("");
   const [manualRepo, setManualRepo] = useState(false);
-  const [deposit, setDeposit] = useState(config.network === "mainnet" ? "0.50" : "5");
+  // Deposits are meant to be nano payments: enough to make mass-produced reports cost something.
+  const [deposit, setDeposit] = useState("0.001");
   const [timeoutValue, setTimeoutValue] = useState(quick ? "5" : "14");
   const [timeoutUnit, setTimeoutUnit] = useState<"minutes" | "days">(quick ? "minutes" : "days");
   const [maxPayout, setMaxPayout] = useState(config.network === "mainnet" ? "1" : "50");
@@ -168,7 +170,22 @@ function CreatePool() {
         <label className="space-y-1">
           <span className="text-sm font-medium">Deposit (USDC)</span>
           <input className={`${field} num`} inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} required />
-          <span className="block text-xs text-ink-muted">Exact amount a reporter pays.</span>
+          <span className="flex flex-wrap gap-1.5" role="group" aria-label="Deposit presets">
+            {DEPOSIT_PRESETS.map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setDeposit(v)}
+                aria-pressed={deposit === v}
+                className={`num state-change rounded-full border px-2.5 py-0.5 text-xs ${
+                  deposit === v ? "border-accent bg-accent text-accent-ink" : "border-line bg-card text-ink-muted hover:border-accent"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </span>
+          <span className="block text-xs text-ink-muted">Exact amount a reporter pays, refunded unless the report is slop.</span>
         </label>
         <label className="space-y-1">
           <span className="text-sm font-medium">Response time</span>

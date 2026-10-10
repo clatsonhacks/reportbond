@@ -9,9 +9,11 @@ export function parseUsdc(value: string): bigint {
 
 /** Two decimals, rounded down so we never show more than someone has. */
 export function formatUsdc(value: bigint, withUnit = true): string {
-  const cents = value / 10n ** 16n;
-  const whole = cents / 100n;
-  const frac = (cents % 100n).toString().padStart(2, "0");
+  // Up to six decimals so nano deposits (0.001 USDC) show exactly; at least two, so 5 reads "5.00".
+  const micro = value / 10n ** 12n;
+  const whole = micro / 1_000_000n;
+  let frac = (micro % 1_000_000n).toString().padStart(6, "0");
+  while (frac.length > 2 && frac.endsWith("0")) frac = frac.slice(0, -1);
   const s = `${whole.toLocaleString("en-US")}.${frac}`;
   return withUnit ? `${s} USDC` : s;
 }

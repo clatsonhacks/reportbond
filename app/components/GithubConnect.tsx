@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { post } from "@/lib/api";
 import { connectHref, useGithubSession } from "@/lib/github";
@@ -23,7 +24,18 @@ export function GithubConnect() {
   const session = useGithubSession();
   const qc = useQueryClient();
   const s = session.data;
-  if (!s?.configured) return null;
+  if (!s) return null;
+  if (!s.configured) {
+    return (
+      <Notice tone="waiting">
+        GitHub isn&apos;t set up on this site yet, so pools can&apos;t be verified.{" "}
+        <Link href="/setup/github" className="underline underline-offset-2">
+          Set up the GitHub App
+        </Link>{" "}
+        (one click, for the site owner).
+      </Notice>
+    );
+  }
 
   async function disconnect() {
     await post("/api/github/logout", {});

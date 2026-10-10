@@ -7,6 +7,8 @@ import { useState } from "react";
 import { parseEventLogs, type Hex } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
 import { GithubIdentity } from "@/components/GithubIdentity";
+import { MyGithubReports } from "@/components/MyGithubReports";
+import type { MyReportView } from "@/lib/github";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, ButtonLink, Card, Loading, Notice } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
@@ -55,6 +57,19 @@ export default function ReportFlow() {
     }
   }
 
+  // Verified pools: the reporter picks one of their own reports from GitHub instead of pasting a link.
+  async function pick(r: MyReportView) {
+    setChecking(true);
+    setLinkError(null);
+    try {
+      setChecked(await post<Checked>("/api/advisory/check", { poolId: pool.id, url: r.url }));
+    } catch (err) {
+      setLinkError((err as Error).message);
+    } finally {
+      setChecking(false);
+    }
+  }
+
   async function pay() {
     if (!checked) return;
     const hash = await tx.run(() =>
@@ -86,7 +101,7 @@ export default function ReportFlow() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold break-words">Report with deposit</h1>
         <ol className="mt-3 flex gap-4 text-sm" aria-label="Steps">
-          {["Advisory link", "Review", "Pay"].map((s, i) => (
+          {[pool.verifiedBy ? "Your report" : "Advisory link", "Review", "Pay"].map((s, i) => (
             <li key={s} className={step > i + 1 ? "text-returned" : step === i + 1 ? "font-medium" : "text-ink-muted"} aria-current={step === i + 1 ? "step" : undefined}>
               <span className="num">{i + 1}.</span> {s}
             </li>
@@ -96,6 +111,12 @@ export default function ReportFlow() {
 
       {step === 1 && (
         <Card>
+          {pool.verifiedBy ? (
+            <div className="space-y-4">
+              <MyGithubReports pool={pool} onPick={pick} busy={checking} />
+              {linkError && <Notice tone="slashed">{linkError}</Notice>}
+            </div>
+          ) : (
           <form onSubmit={check} className="space-y-4">
             <label htmlFor="link" className="block font-medium">
               Paste your GitHub advisory link
@@ -119,6 +140,7 @@ export default function ReportFlow() {
               {checking ? "Checking…" : "Continue"}
             </Button>
           </form>
+          )}
         </Card>
       )}
 

@@ -74,6 +74,8 @@ export type PrivateData = {
   advisoryLinks: Record<string, string>;
   /** "owner/repo" by pool ID. */
   repoNames: Record<string, string>;
+  /** Filing fees collected through Circle Gateway, by advisory hash. */
+  filingFees?: Record<string, { payer: string; amount: string; transaction: string; at: number }>;
 };
 
 export function emptyChain(): ChainData {

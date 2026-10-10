@@ -20,6 +20,14 @@ export type TrackedReportView = {
   status: number | null; // on-chain report status, if bonded
   synced: boolean;
   syncError: string | null;
+  /** Wallet that paid the deposit, and the GitHub account linked to it, if any. */
+  depositor: string | null;
+  depositorLogin: string | null;
+  /**
+   * Whether the deposit was paid by the person who filed the report on GitHub:
+   * "match", "mismatch" (the wallet is linked to a different account), or "unknown" (not linked, or no deposit).
+   */
+  reporterMatch: "match" | "mismatch" | "unknown";
 };
 
 /** Builds a tracked advisory from a repository_advisory webhook payload. */
@@ -43,13 +51,17 @@ export function trackedFromWebhook(
   };
 }
 
-export function trackedView(a: TrackedAdvisory, chain: ChainData, now: number): TrackedReportView {
+export function trackedView(a: TrackedAdvisory, chain: ChainData, now: number, gh?: GithubData): TrackedReportView {
   // The newest on-chain report for this advisory (a reporter may re-file after a refund).
   const onchain = Object.values(chain.reports)
     .filter((r) => r.advisoryHash === a.advisoryHash)
     .sort((x, y) => y.id - x.id)[0];
   const bondDeadline = a.reportedAt + BOND_WINDOW_SECONDS;
+  const depositorLogin = onchain ? (gh?.walletLinks?.[onchain.reporter]?.login ?? null) : null;
   return {
+    depositor: onchain?.reporter ?? null,
+    depositorLogin,
+    reporterMatch: !depositorLogin || !a.reporter ? "unknown" : depositorLogin === a.reporter ? "match" : "mismatch",
     ghsa: a.ghsa,
     url: a.url,
     reporter: a.reporter,

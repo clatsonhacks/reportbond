@@ -25,6 +25,6 @@ export async function GET(req: Request) {
     .filter((a) => a.repo === verified.repo)
     .sort((a, b) => b.reportedAt - a.reportedAt)
     // The latest agent run for each report, if any.
-    .map((a) => ({ ...trackedView(a, chain, now), triage: triage[a.ghsa]?.runs.at(-1) ?? null }));
+    .map((a) => ({ ...trackedView(a, chain, now, gh), triage: triage[a.ghsa]?.runs.at(-1) ?? null }));
   return json({ verified: true, repo: verified.repo, reports });
 }

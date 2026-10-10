@@ -20,10 +20,14 @@ export type TrackedReportView = {
   syncError: string | null;
   /** Latest agent run for this report, if any. */
   triage: TriageRun | null;
+  depositor: string | null;
+  depositorLogin: string | null;
+  reporterMatch: "match" | "mismatch" | "unknown";
 };
 
 export function useGithubSession() {
   return useQuery({ queryKey: ["github-session"], queryFn: () => api<GithubSessionView>("/api/github/session") });
 }
 
-export const connectHref = (mode: "install" | "signin") => `/api/github/connect?mode=${mode}`;
+export const connectHref = (mode: "install" | "signin", next?: string) =>
+  `/api/github/connect?mode=${mode}${next ? `&next=${encodeURIComponent(next)}` : ""}`;

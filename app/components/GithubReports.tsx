@@ -138,6 +138,17 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
                   {r.reporter ? `@${r.reporter} · ` : ""}filed {formatDate(r.reportedAt)}
                   {r.bond === "awaiting" && ` · deposit due ${formatDate(r.bondDeadline)}`}
                 </p>
+                {r.reporterMatch === "match" && (
+                  <p className="text-xs text-returned">✓ Deposit paid by @{r.depositorLogin}, the account that filed this report</p>
+                )}
+                {r.reporterMatch === "mismatch" && (
+                  <p className="text-xs text-waiting">
+                    ⚠ Deposit paid by a wallet linked to @{r.depositorLogin}, not the filer{r.reporter ? ` @${r.reporter}` : ""}
+                  </p>
+                )}
+                {r.reporterMatch === "unknown" && r.depositor && (
+                  <p className="text-xs text-ink-muted">Deposit paid by a wallet with no linked GitHub account</p>
+                )}
                 {r.syncError && <p className="text-xs text-slashed">Couldn&apos;t update GitHub: {r.syncError}</p>}
               </div>
               <div className="flex items-center gap-2">

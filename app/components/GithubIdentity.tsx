@@ -8,22 +8,11 @@ import { useState } from "react";
 import { useAccount } from "wagmi";
 import { api, post } from "@/lib/api";
 import { useGithubSession } from "@/lib/github";
-import { useSignIn } from "@/lib/useSignIn";
+import { savedSignInToken, useSignIn } from "@/lib/useSignIn";
 import { GithubMark, GithubSignInButton } from "./GithubConnect";
 import { Button, Notice } from "./ui";
 
 type Link = { login: string | null };
-const tokenKey = (address: string) => `reportbond.signin.${address.toLowerCase()}`;
-
-/** The saved wallet sign-in token, if there is one: lets us show the link without asking for a signature. */
-function savedToken(address: string | undefined): string | null {
-  if (!address) return null;
-  try {
-    return JSON.parse(localStorage.getItem(tokenKey(address)) ?? "null")?.token ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export function GithubIdentity() {
   const pathname = usePathname();
@@ -34,7 +23,7 @@ export function GithubIdentity() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const token = savedToken(address);
+  const token = savedSignInToken(address);
   const link = useQuery({
     queryKey: ["github-link", address?.toLowerCase() ?? null, Boolean(token)],
     queryFn: () => api<Link>("/api/github/link", { headers: { authorization: `Bearer ${token}` } }),

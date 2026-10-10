@@ -4,9 +4,13 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { chain } from "@/lib/network";
 import { usePathname } from "next/navigation";
+import { useGithubSession } from "@/lib/github";
+import { GithubMark } from "./GithubConnect";
 
 export function Header() {
   const pathname = usePathname();
+  const github = useGithubSession();
+  const login = github.data?.connected ? github.data.login : null;
 
   const navItems = [
     { href: "/#pools", label: "Pools" },
@@ -49,6 +53,14 @@ export function Header() {
           <span className="hidden rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted sm:inline">
             {chain.name}
           </span>
+          <Link
+            href={login || pathname === "/login" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`}
+            className="state-change inline-flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-medium hover:border-accent"
+            title={login ? `Signed in to GitHub as @${login}` : "Sign in with GitHub and your wallet"}
+          >
+            <GithubMark className="h-4 w-4" />
+            {login ? `@${login}` : "Sign in"}
+          </Link>
           <ConnectButton showBalance={{ smallScreen: false, largeScreen: true }} chainStatus="icon" accountStatus="address" />
         </div>
       </div>

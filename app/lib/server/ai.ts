@@ -68,10 +68,109 @@ export async function askStructured<S extends z.ZodType>(opts: Ask<S>): Promise<
 
 // ---------------------------------------------------------------------- Groq
 
-async function askGroq<S extends z.ZodType>(opts: Ask<S>): Promise<{ text: string; model: string }> {
+export type GroqToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
+export type GroqMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: GroqToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+type GroqChoice = { finish_reason?: string; message?: { content?: string | null; refusal?: string | null; tool_calls?: GroqToolCall[] } };
+
+// Groq plans cap tokens per minute (8,000 on the free tier). We learn the cap from response headers,
+// wait for the window to reset before a request that wouldn't fit, and let callers size their work to it.
+const limits = ((globalThis as { __rbAiLimits?: { tpm: number; remaining: number; resetAt: number } }).__rbAiLimits ??= {
+  tpm: Number(process.env.AI_TOKENS_PER_MINUTE ?? 0),
+  remaining: Infinity,
+  resetAt: 0,
+});
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const MAX_WAIT_MS = 65_000;
+
+/** "22.5s", "1m3.2s" or plain seconds -> milliseconds. */
+function durationMs(v: string | null): number {
+  if (!v) return 0;
+  const m = v.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?$/);
+  if (m && (m[1] || m[2] || m[3])) return (Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0)) * 1000;
+  return Number(v) * 1000 || 0;
+}
+
+function noteLimits(h: Headers) {
+  const tpm = Number(h.get("x-ratelimit-limit-tokens"));
+  if (tpm > 0 && !process.env.AI_TOKENS_PER_MINUTE) limits.tpm = tpm;
+  const remaining = h.get("x-ratelimit-remaining-tokens");
+  if (remaining !== null) {
+    limits.remaining = Number(remaining);
+    limits.resetAt = Date.now() + durationMs(h.get("x-ratelimit-reset-tokens"));
+  }
+}
+
+/**
+ * The provider's tokens-per-minute cap, or 0 when there is none we need to plan around (Claude, or a
+ * Groq plan not yet seen). On Groq the first call of a process is a tiny probe that reads the cap.
+ */
+export async function tokensPerMinute(): Promise<number> {
+  if (aiProvider() !== "groq") return 0;
+  if (!limits.tpm) {
+    await groqChat({ messages: [{ role: "user", content: "ok" }], max_completion_tokens: 1, reasoning_effort: "low" }).catch(() => {});
+  }
+  return limits.tpm;
+}
+
+/** One chat completion on Groq, paced to the plan's rate limit, with retries on 429 and server errors. */
+export async function groqChat(body: Record<string, unknown>): Promise<{ choice: GroqChoice; model: string }> {
   const base = (process.env.GROQ_BASE_URL ?? "https://api.groq.com/openai/v1").replace(/\/$/, "");
-  const body = {
-    model: aiModel(),
+  // Rough size of this request: prompt characters / 3.5, plus room for the answer.
+  const estimate = Math.ceil(JSON.stringify(body.messages ?? "").length / 3.5) + Math.min(Number(body.max_completion_tokens ?? 2000), 2500);
+  if (limits.tpm && estimate > limits.tpm) {
+    throw new AiError(
+      `This review needs about ${estimate.toLocaleString("en-US")} tokens in one request, but the AI plan allows ${limits.tpm.toLocaleString("en-US")} per minute. Use a higher Groq tier or a smaller report.`,
+    );
+  }
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    // Not enough of this minute's allowance left: wait for it to reset instead of drawing a 429.
+    if (estimate > limits.remaining && Date.now() < limits.resetAt) {
+      await sleep(Math.min(limits.resetAt - Date.now() + 500, MAX_WAIT_MS));
+    }
+    try {
+      res = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${process.env.GROQ_API_KEY}`, "content-type": "application/json" },
+        body: JSON.stringify({ model: aiModel(), ...body }),
+        signal: AbortSignal.timeout(240_000),
+      });
+    } catch (e) {
+      // Network failure (dropped connection, DNS, timeout): back off and try again.
+      const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+      const why = [(e as Error).message, cause?.code ?? cause?.message].filter(Boolean).join(": ");
+      if (attempt === 4) throw new AiError(`The AI service could not be reached (${why}).`);
+      await sleep(1500 * (attempt + 1));
+      continue;
+    }
+    noteLimits(res.headers);
+    // Rate limited: wait as long as the service asks (up to about a minute), then try again.
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      const asked = durationMs(res.headers.get("retry-after")) || durationMs(res.headers.get("x-ratelimit-reset-tokens")) || 2000;
+      await sleep(Math.min(asked + 500, MAX_WAIT_MS));
+      limits.remaining = Infinity;
+      continue;
+    }
+    break;
+  }
+
+  const j = (await res!.json().catch(() => ({}))) as { error?: { message?: string }; model?: string; choices?: GroqChoice[] };
+  if (!res!.ok) {
+    if (res!.status === 401) throw new AiError("The AI key was rejected. Check GROQ_API_KEY.");
+    if (res!.status === 429) throw new AiError("The AI is rate-limited right now. Try again in a minute.");
+    if (res!.status === 413) throw new AiError("The report and code were too large for the AI plan's per-minute limit.");
+    throw new AiError(`The AI request failed (${res!.status}): ${j.error?.message ?? "unknown error"}`);
+  }
+  const choice = j.choices?.[0] ?? {};
+  if (choice.message?.refusal) throw new AiError("The AI declined to review this content. A maintainer needs to look at it.");
+  return { choice, model: j.model ?? aiModel() };
+}
+
+async function askGroq<S extends z.ZodType>(opts: Ask<S>): Promise<{ text: string; model: string }> {
+  const { choice, model } = await groqChat({
     max_completion_tokens: opts.maxTokens ?? 16000,
     reasoning_effort: opts.effort ?? "high",
     messages: [
@@ -83,45 +182,9 @@ async function askGroq<S extends z.ZodType>(opts: Ask<S>): Promise<{ text: strin
       type: "json_schema",
       json_schema: { name: opts.name, strict: true, schema: z.toJSONSchema(opts.schema) },
     },
-  };
-
-  let res: Response | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      res = await fetch(`${base}/chat/completions`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${process.env.GROQ_API_KEY}`, "content-type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(240_000),
-      });
-    } catch (e) {
-      if (attempt === 2) throw new AiError(`Couldn't reach the AI service: ${(e as Error).message}`);
-      continue;
-    }
-    // Retry rate limits and server errors, with a short wait.
-    if ((res.status === 429 || res.status >= 500) && attempt < 2) {
-      const wait = Math.min(Number(res.headers.get("retry-after") ?? 2) * 1000, 20_000);
-      await new Promise((r) => setTimeout(r, wait));
-      continue;
-    }
-    break;
-  }
-
-  const j = (await res!.json().catch(() => ({}))) as {
-    error?: { message?: string };
-    model?: string;
-    choices?: { finish_reason?: string; message?: { content?: string | null; refusal?: string | null } }[];
-  };
-  if (!res!.ok) {
-    if (res!.status === 401) throw new AiError("The AI key was rejected. Check GROQ_API_KEY.");
-    if (res!.status === 429) throw new AiError("The AI is rate-limited right now. Try again in a minute.");
-    if (res!.status === 413) throw new AiError("The report and code were too large for the AI model.");
-    throw new AiError(`The AI request failed (${res!.status}): ${j.error?.message ?? "unknown error"}`);
-  }
-  const choice = j.choices?.[0];
-  if (choice?.message?.refusal) throw new AiError("The AI declined to review this content. A maintainer needs to look at it.");
-  if (choice?.finish_reason === "length") throw new AiError("The AI's answer was cut off. Try again.");
-  return { text: choice?.message?.content ?? "", model: j.model ?? body.model };
+  });
+  if (choice.finish_reason === "length") throw new AiError("The AI's answer was cut off. Try again.");
+  return { text: choice.message?.content ?? "", model };
 }
 
 // -------------------------------------------------------------------- Claude

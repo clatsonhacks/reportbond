@@ -148,3 +148,10 @@ export async function setAdvisoryState(
   const token = await installationToken(installationId);
   await gh(`/repos/${repo}/security-advisories/${ghsa}`, token, { method: "PATCH", body: JSON.stringify({ state }) });
 }
+
+// ------------------------------------------------------------------ repo reads
+
+/** GET a repository-scoped API path as the installation (read access granted by the maintainer). */
+export async function installationGet<T>(installationId: number, path: string, init: RequestInit = {}): Promise<T> {
+  return gh<T>(path, await installationToken(installationId), init);
+}

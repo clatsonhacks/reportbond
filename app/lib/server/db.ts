@@ -269,3 +269,18 @@ export async function loadGithub(): Promise<GithubData> {
 export function updateGithub(fn: (d: GithubData) => void): Promise<void> {
   return store.updateRecord("github", emptyGithub, fn);
 }
+
+// ------------------------------------------------------------ rules and triage
+
+import type { Rulebook, RulebookVersion, TriageRun } from "../rules";
+
+/** Bounty rulebooks by pool ID: the working draft and every published version. */
+export type RulesData = Record<string, { draft: Rulebook | null; versions: RulebookVersion[] }>;
+/** Agent runs by GHSA ID, newest last. This is the audit log of what the agents saw and said. */
+export type TriageData = Record<string, { runs: TriageRun[] }>;
+
+export const loadRules = (): Promise<RulesData> => store.getRecord<RulesData>("rules", () => ({}));
+export const updateRules = (fn: (d: RulesData) => void): Promise<void> => store.updateRecord<RulesData>("rules", () => ({}), fn);
+export const loadTriage = (): Promise<TriageData> => store.getRecord<TriageData>("triage", () => ({}));
+export const updateTriage = (fn: (d: TriageData) => void): Promise<void> =>
+  store.updateRecord<TriageData>("triage", () => ({}), fn);

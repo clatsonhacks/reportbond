@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
+import type { TriageRun } from "./rules";
 
 export type GithubSessionView = { configured: boolean; connected: boolean; login: string | null; repos: string[] };
 
@@ -17,6 +18,8 @@ export type TrackedReportView = {
   status: number | null;
   synced: boolean;
   syncError: string | null;
+  /** Latest agent run for this report, if any. */
+  triage: TriageRun | null;
 };
 
 export function useGithubSession() {

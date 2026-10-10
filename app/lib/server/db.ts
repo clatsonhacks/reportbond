@@ -156,7 +156,8 @@ function postgresStore(url: string): Store {
 // ---------------------------------------------------------------- JSON files
 
 function fileStore(): Store {
-  const dir = path.join(process.cwd(), ".data");
+  // DATA_DIR lets tests keep their records apart from real local data.
+  const dir = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
   const chainFile = path.join(dir, `${deployment}.chain.json`);
   const recordFile = (name: string) => path.join(dir, `${deployment}.${name}.json`);
 

@@ -23,6 +23,26 @@ export type TrackedReportView = {
   depositor: string | null;
   depositorLogin: string | null;
   reporterMatch: "match" | "mismatch" | "unknown";
+  title: string | null;
+  history: { valid: number; mistake: number; slop: number };
+  tags: { label: string; tone: "good" | "warn" | "bad" | "neutral" }[];
+};
+
+/** One of the signed-in reporter's own private reports, and what it needs next. */
+export type MyReportView = {
+  ghsa: string;
+  title: string | null;
+  url: string;
+  repo: string;
+  poolId: number;
+  reportedAt: number;
+  githubState: string;
+  bond: "bonded" | "awaiting" | "unbonded";
+  bondDeadline: number;
+  reportId: number | null;
+  status: number | null;
+  advisoryHash: `0x${string}`;
+  depositAmount: string;
 };
 
 export function useGithubSession() {

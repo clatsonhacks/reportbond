@@ -28,7 +28,28 @@ export type TrackedReportView = {
    * "match", "mismatch" (the wallet is linked to a different account), or "unknown" (not linked, or no deposit).
    */
   reporterMatch: "match" | "mismatch" | "unknown";
+  title: string | null;
+  /** The filer's earlier outcomes on this site, across all pools, by GitHub account. */
+  history: { valid: number; mistake: number; slop: number };
+  /** Short labels a maintainer can sort their attention by. */
+  tags: { label: string; tone: "good" | "warn" | "bad" | "neutral" }[];
 };
+
+/** Earlier verdicts on reports filed by one GitHub account (other than `except`). */
+export function reporterHistory(login: string | null, gh: GithubData | undefined, chain: ChainData, except?: string) {
+  const h = { valid: 0, mistake: 0, slop: 0 };
+  if (!login || !gh) return h;
+  const statusByHash = new Map<string, number>();
+  for (const r of Object.values(chain.reports)) statusByHash.set(r.advisoryHash, r.status);
+  for (const a of Object.values(gh.advisories)) {
+    if (a.reporter !== login || a.ghsa === except) continue;
+    const s = statusByHash.get(a.advisoryHash);
+    if (s === 3) h.valid++;
+    else if (s === 4) h.mistake++;
+    else if (s === 5) h.slop++;
+  }
+  return h;
+}
 
 /** Builds a tracked advisory from a repository_advisory webhook payload. */
 export function trackedFromWebhook(
@@ -58,10 +79,22 @@ export function trackedView(a: TrackedAdvisory, chain: ChainData, now: number, g
     .sort((x, y) => y.id - x.id)[0];
   const bondDeadline = a.reportedAt + BOND_WINDOW_SECONDS;
   const depositorLogin = onchain ? (gh?.walletLinks?.[onchain.reporter]?.login ?? null) : null;
+  const reporterMatch = !depositorLogin || !a.reporter ? "unknown" : depositorLogin === a.reporter ? "match" : "mismatch";
+  const history = reporterHistory(a.reporter, gh, chain, a.ghsa);
+  const tags: TrackedReportView["tags"] = [];
+  if (history.valid > 0 && history.slop === 0) tags.push({ label: `Trusted reporter · ${history.valid} valid`, tone: "good" });
+  else if (history.slop > 0 && history.slop >= history.valid) tags.push({ label: `Flagged · ${history.slop} slop before`, tone: "bad" });
+  else if (history.valid + history.mistake + history.slop === 0) tags.push({ label: "First report here", tone: "neutral" });
+  if (reporterMatch === "match") tags.push({ label: "Paid by the filer", tone: "good" });
+  if (reporterMatch === "mismatch") tags.push({ label: "Paid by someone else", tone: "warn" });
+  if (!onchain && now > bondDeadline) tags.push({ label: "No deposit", tone: "warn" });
   return {
+    title: a.title ?? null,
+    history,
+    tags,
     depositor: onchain?.reporter ?? null,
     depositorLogin,
-    reporterMatch: !depositorLogin || !a.reporter ? "unknown" : depositorLogin === a.reporter ? "match" : "mismatch",
+    reporterMatch,
     ghsa: a.ghsa,
     url: a.url,
     reporter: a.reporter,

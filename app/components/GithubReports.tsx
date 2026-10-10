@@ -14,6 +14,13 @@ import { TriageResult } from "./TriageResult";
 import { Button, buttonStyles, Card, Empty, Notice } from "./ui";
 import { VerifiedBadge } from "./VerifiedBadge";
 
+const tagTone = {
+  good: "bg-returned-bg text-returned",
+  warn: "bg-waiting-bg text-waiting",
+  bad: "bg-slashed-bg text-slashed",
+  neutral: "bg-surface text-ink-muted",
+} as const;
+
 const bondLabel: Record<TrackedReportView["bond"], { text: string; cls: string }> = {
   bonded: { text: "Deposit paid", cls: "bg-returned-bg text-returned" },
   awaiting: { text: "Awaiting deposit", cls: "bg-waiting-bg text-waiting" },
@@ -131,19 +138,26 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
             <li key={r.ghsa} className="space-y-3 px-4 py-3 text-sm">
              <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="space-y-0.5">
+                {r.title && <p className="font-medium break-words">{r.title}</p>}
                 <a href={r.url} target="_blank" rel="noreferrer" className="num font-medium hover:underline">
                   {r.ghsa} ↗
                 </a>
+                {r.tags.length > 0 && (
+                  <p className="flex flex-wrap gap-1.5 pt-0.5">
+                    {r.tags.map((t) => (
+                      <span key={t.label} className={`rounded-full px-2 py-0.5 text-xs font-medium ${tagTone[t.tone]}`}>
+                        {t.label}
+                      </span>
+                    ))}
+                  </p>
+                )}
                 <p className="text-ink-muted">
                   {r.reporter ? `@${r.reporter} · ` : ""}filed {formatDate(r.reportedAt)}
                   {r.bond === "awaiting" && ` · deposit due ${formatDate(r.bondDeadline)}`}
                 </p>
-                {r.reporterMatch === "match" && (
-                  <p className="text-xs text-returned">✓ Deposit paid by @{r.depositorLogin}, the account that filed this report</p>
-                )}
                 {r.reporterMatch === "mismatch" && (
                   <p className="text-xs text-waiting">
-                    ⚠ Deposit paid by a wallet linked to @{r.depositorLogin}, not the filer{r.reporter ? ` @${r.reporter}` : ""}
+                    Deposit paid by a wallet linked to @{r.depositorLogin}, not the filer{r.reporter ? ` @${r.reporter}` : ""}
                   </p>
                 )}
                 {r.reporterMatch === "unknown" && r.depositor && (

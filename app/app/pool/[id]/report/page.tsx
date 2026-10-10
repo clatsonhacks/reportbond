@@ -6,9 +6,11 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { parseEventLogs, type Hex } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
+import { FilingFee } from "@/components/FilingFee";
 import { GithubIdentity } from "@/components/GithubIdentity";
 import { MyGithubReports } from "@/components/MyGithubReports";
 import type { MyReportView } from "@/lib/github";
+import type { FeeView, PaymentRequired } from "@/lib/nano";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, ButtonLink, Card, Loading, Notice } from "@/components/ui";
 import { WalletGate } from "@/components/WalletGate";
@@ -17,7 +19,8 @@ import { reportBond } from "@/lib/contract";
 import { formatUsdc } from "@/lib/format";
 import { useTx } from "@/lib/useTx";
 
-type Checked = { repo: string; ghsa: string; url: string; advisoryHash: Hex };
+type Checked = { repo: string; ghsa: string; url: string; advisoryHash: Hex; fee?: FeeView };
+type FeeDue = { url: string; paymentRequired: PaymentRequired };
 
 export default function ReportFlow() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +29,7 @@ export default function ReportFlow() {
   const [checking, setChecking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [checked, setChecked] = useState<Checked | null>(null);
+  const [feeDue, setFeeDue] = useState<FeeDue | null>(null);
   const [reportId, setReportId] = useState<bigint | null>(null);
   const [linkSaveError, setLinkSaveError] = useState<string | null>(null);
   const { writeContractAsync } = useWriteContract();
@@ -44,12 +48,27 @@ export default function ReportFlow() {
   });
   const step = reportId ? 4 : checked ? 2 : 1;
 
-  async function check(e: React.FormEvent) {
-    e.preventDefault();
+  // Asks the server whether this report can be paid for. A 402 answer means a filing fee is due:
+  // the fee step signs a payment and this runs again with it.
+  async function runCheck(url: string, paymentHeader?: string) {
     setChecking(true);
     setLinkError(null);
     try {
-      setChecked(await post<Checked>("/api/advisory/check", { poolId: pool.id, url: link }));
+      const res = await fetch("/api/advisory/check", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(paymentHeader ? { "Payment-Signature": paymentHeader } : {}) },
+        body: JSON.stringify({ poolId: pool.id, url }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 402 && body.paymentRequired) {
+        setFeeDue({ url, paymentRequired: body.paymentRequired });
+        if (paymentHeader) setLinkError(body.error);
+      } else if (!res.ok) {
+        throw new Error(body.error ?? `Request failed (${res.status})`);
+      } else {
+        setFeeDue(null);
+        setChecked(body as Checked);
+      }
     } catch (err) {
       setLinkError((err as Error).message);
     } finally {
@@ -57,18 +76,13 @@ export default function ReportFlow() {
     }
   }
 
-  // Verified pools: the reporter picks one of their own reports from GitHub instead of pasting a link.
-  async function pick(r: MyReportView) {
-    setChecking(true);
-    setLinkError(null);
-    try {
-      setChecked(await post<Checked>("/api/advisory/check", { poolId: pool.id, url: r.url }));
-    } catch (err) {
-      setLinkError((err as Error).message);
-    } finally {
-      setChecking(false);
-    }
+  function check(e: React.FormEvent) {
+    e.preventDefault();
+    void runCheck(link);
   }
+
+  // Verified pools: the reporter picks one of their own reports from GitHub instead of pasting a link.
+  const pick = (r: MyReportView) => void runCheck(r.url);
 
   async function pay() {
     if (!checked) return;
@@ -109,7 +123,22 @@ export default function ReportFlow() {
         </ol>
       </div>
 
-      {step === 1 && (
+      {step === 1 && feeDue && (
+        <Card>
+          <FilingFee
+            due={feeDue.paymentRequired}
+            error={linkError}
+            busy={checking}
+            onPay={(header) => void runCheck(feeDue.url, header)}
+            onCancel={() => {
+              setFeeDue(null);
+              setLinkError(null);
+            }}
+          />
+        </Card>
+      )}
+
+      {step === 1 && !feeDue && (
         <Card>
           {pool.verifiedBy ? (
             <div className="space-y-4">
@@ -151,6 +180,7 @@ export default function ReportFlow() {
             <p className="num mt-1 text-sm">
               {checked.repo} · {checked.ghsa}
             </p>
+            {checked.fee?.paid && <p className="mt-1 text-sm text-returned">Filing fee paid</p>}
           </div>
           <p className="text-lg leading-relaxed">
             You&apos;ll deposit <Amount value={deposit} />. You get it back if your report is valid or an honest mistake,

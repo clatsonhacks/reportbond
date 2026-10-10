@@ -4,7 +4,18 @@ The GitHub App lets maintainers prove they own a repository and lets ReportBond 
 
 Register **one app per environment**: one for testnet and one for mainnet later. Each has its own URL and secrets.
 
-## 1. Register the app
+## The quick way: one click
+
+Open **`/setup/github`** on your ReportBond site and click **Create ReportBond GitHub App**. GitHub shows the app with every setting below already filled in; click *Create* there.
+
+- **Locally** (`pnpm dev`): the credentials are written to `.env` for you, and Connect GitHub works straight away. GitHub can't reach `localhost`, so the app is created with webhooks off unless you give the page a tunnel URL (for example from smee.io).
+- **On a deployed site:** first set `SETUP_SECRET` to a long random string in the host's environment variables and enter it on the page. The credentials are then shown once; paste them into the host's environment variables, redeploy, and remove `SETUP_SECRET`.
+
+The page refuses to run once an app is configured, so nobody can swap in their own. `pnpm test:github-setup` tests this flow against a mock GitHub.
+
+The rest of this document is the manual way, and a reference for what the app is given.
+
+## 1. Register the app (manual)
 
 Go to **github.com/settings/apps/new**. For an organisation, use its *Settings → Developer settings → GitHub Apps → New GitHub App*.
 

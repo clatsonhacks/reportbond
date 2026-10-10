@@ -39,7 +39,8 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Report tracker: private reports arrive by webhook and show as deposit paid, awaiting deposit, or unbonded after 48 hours
 - [x] Verdicts written back to GitHub: Valid accepts the advisory, Mistake and Slop close it
 - [x] `pnpm test:github`: full flow against a mock GitHub
-- [ ] Register the real app: settings in [GITHUB_APP.md](GITHUB_APP.md)
+- [x] One-click app creation at `/setup/github` (GitHub manifest flow), tested with `pnpm test:github-setup`
+- [ ] Create the real app: open `/setup/github` and click the button ([GITHUB_APP.md](GITHUB_APP.md))
 
 ### Testing
 

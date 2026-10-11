@@ -1,8 +1,8 @@
 import "server-only";
-import type { ChainData, GithubData, PoolRow, PrivateData, ReportRow } from "./db";
+import type { ChainData, GithubData, PoolRow, PrivateData, ReportRow, RulesData } from "./db";
 import type { PoolView, ReportView } from "../types";
 
-export function poolView(d: ChainData, priv: PrivateData, p: PoolRow, gh?: GithubData): PoolView {
+export function poolView(d: ChainData, priv: PrivateData, p: PoolRow, gh?: GithubData, rules?: RulesData): PoolView {
   const outcomes = { valid: 0, mistake: 0, slop: 0, refunded: 0 };
   for (const r of Object.values(d.reports)) {
     if (r.poolId !== p.id) continue;
@@ -17,6 +17,9 @@ export function poolView(d: ChainData, priv: PrivateData, p: PoolRow, gh?: Githu
     available: (BigInt(p.fundedBalance) + BigInt(p.slashedBalance)).toString(),
     outcomes,
     verifiedBy: gh?.verifiedPools[p.id]?.login ?? null,
+    rulesVersion: rules?.[p.id]?.versions.at(-1)?.version ?? null,
+    // Rules are compulsory on a pool linked to GitHub: reporters read them and the agents judge by them.
+    acceptingReports: !gh?.verifiedPools[p.id] || Boolean(rules?.[p.id]?.versions.length),
   };
 }
 

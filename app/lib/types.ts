@@ -20,6 +20,10 @@ export type PoolView = {
   outcomes: Outcomes;
   /** GitHub login that proved admin access to the repo, or null if unverified. */
   verifiedBy: string | null;
+  /** The published rulebook's version, or null when none is published yet. */
+  rulesVersion: number | null;
+  /** False while a GitHub-linked pool has no published rules: it can't take reports yet. */
+  acceptingReports: boolean;
 };
 
 export type TimelineEntryView = {

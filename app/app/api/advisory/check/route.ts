@@ -2,7 +2,7 @@
 // may pay a deposit for, and takes the filing fee when one is set.
 import { advisoryHashOf, parseAdvisoryUrl, repoIdOf } from "@/lib/advisory";
 import { syncPoolAdvisories } from "@/lib/server/advisorySync";
-import { loadGithub, loadPrivate } from "@/lib/server/db";
+import { loadGithub, loadPrivate, loadRules } from "@/lib/server/db";
 import { githubConfigured } from "@/lib/server/github";
 import { hydrateGithubApp } from "@/lib/server/githubAppStore";
 import { currentSession } from "@/lib/server/githubSession";
@@ -31,6 +31,9 @@ export async function POST(req: Request) {
   await hydrateGithubApp();
   const verified = githubConfigured() ? (await loadGithub()).verifiedPools[String(poolId)] : undefined;
   if (verified) {
+    if (!(await loadRules())[String(poolId)]?.versions.length) {
+      return bad("This pool isn't taking reports yet: its maintainer hasn't published the bounty rules.", 409);
+    }
     const session = await currentSession();
     if (!session) return bad("Sign in with GitHub to pay the deposit for your report", 401);
     const available = await syncPoolAdvisories(String(poolId), true);

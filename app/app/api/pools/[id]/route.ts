@@ -1,4 +1,4 @@
-import { loadGithub, loadPrivate } from "@/lib/server/db";
+import { loadGithub, loadPrivate, loadRules } from "@/lib/server/db";
 import { ensureFresh, syncFresh } from "@/lib/server/indexer";
 import { bad, json, poolView, reportView } from "@/lib/server/views";
 
@@ -14,5 +14,5 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .sort((a, b) => b.id - a.id)
     .slice(0, 10)
     .map((r) => reportView(priv, r));
-  return json({ pool: poolView(d, priv, p, await loadGithub()), recent });
+  return json({ pool: poolView(d, priv, p, await loadGithub(), await loadRules()), recent });
 }

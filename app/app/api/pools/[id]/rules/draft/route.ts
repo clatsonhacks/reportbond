@@ -24,11 +24,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   };
 
   try {
-    const { rules, model } = await draftRulebook(verified.installationId, verified.repo, answers);
+    const { rules, model, sources } = await draftRulebook(verified.installationId, verified.repo, answers);
     await updateRules((d) => {
       (d[id] ??= { draft: null, versions: [] }).draft = rules;
     });
-    return json({ rules, model });
+    return json({ rules, model, sources });
   } catch (e) {
     if (e instanceof AiError) return bad(e.message, 502);
     console.error("[setup agent]", e);

@@ -2,6 +2,7 @@
 // Pool creator only. The result is a recommendation; nothing is signed or sent on-chain here.
 import { aiConfigured } from "@/lib/server/ai";
 import { runTriage } from "@/lib/server/agents/triage";
+import { maybeAutoSlop } from "@/lib/server/autoSlop";
 import { loadGithub, loadRules } from "@/lib/server/db";
 import { requireCreator } from "@/lib/server/poolAuth";
 import { bad, json } from "@/lib/server/views";
@@ -23,7 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ ghsa: s
   if (!rules) return bad("Publish the pool's rules first: the agents judge reports against them");
   if (!aiConfigured()) return bad("The AI isn't set up on this server", 503);
 
-  const run = await runTriage(verified.installationId, verified.repo, ghsa, rules);
+  const run = await maybeAutoSlop(poolId, ghsa, await runTriage(verified.installationId, verified.repo, ghsa, rules));
   // A failed run is still a result the maintainer should see (run.error says why).
   return json({ run });
 }

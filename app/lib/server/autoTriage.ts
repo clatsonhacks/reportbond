@@ -2,7 +2,9 @@
 // The deposit is what makes this affordable: reports nobody paid for are never read by the model.
 import "server-only";
 import { runTriage } from "./agents/triage";
+import { syncPoolAdvisories } from "./advisorySync";
 import { aiConfigured } from "./ai";
+import { maybeAutoSlop } from "./autoSlop";
 import { loadGithub, loadRules, loadTriage } from "./db";
 import type { TriageRun } from "../rules";
 
@@ -18,14 +20,21 @@ export async function autoTriage(poolId: string, ghsa: string): Promise<TriageRu
   if (!aiConfigured() || running.has(id)) return null;
   running.add(id);
   try {
-    const gh = await loadGithub();
+    let gh = await loadGithub();
     const verified = gh.verifiedPools[poolId];
+    if (!verified) return null;
+    // A report filed moments ago may not be in the tracker yet: ask GitHub before giving up.
+    if (!gh.advisories[id]) {
+      await syncPoolAdvisories(poolId, true);
+      gh = await loadGithub();
+    }
     const advisory = gh.advisories[id];
-    if (!verified || !advisory || advisory.repo !== verified.repo) return null;
+    if (!advisory || advisory.repo !== verified.repo) return null;
     const rules = (await loadRules())[poolId]?.versions.at(-1);
     if (!rules) return null;
     if ((await loadTriage())[id]?.runs.length) return null;
-    return await runTriage(verified.installationId, verified.repo, id, rules);
+    const run = await runTriage(verified.installationId, verified.repo, id, rules);
+    return await maybeAutoSlop(poolId, id, run);
   } catch (e) {
     console.error(`[auto triage] ${id}:`, (e as Error).message);
     return null;

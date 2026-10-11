@@ -76,6 +76,10 @@ export type PrivateData = {
   repoNames: Record<string, string>;
   /** Filing fees collected through Circle Gateway, by advisory hash. */
   filingFees?: Record<string, { payer: string; amount: string; transaction: string; at: number }>;
+  /** Automatic slop rejection by pool ID: the confidence, in percent, at which the AI rejects a report itself. */
+  autoSlop?: Record<string, { threshold: number }>;
+  /** Verdict delegates we have read from the chain: delegate address to the maintainer it answers to. */
+  delegates?: Record<string, string>;
 };
 
 export function emptyChain(): ChainData {

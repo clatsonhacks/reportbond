@@ -13,6 +13,8 @@ export type NetworkConfig = {
   contractAddress: Address;
   deployBlock: number;
   isTestnet: boolean;
+  /** VerdictDelegateFactory, for pools that let the AI reject slop automatically. Absent: that option is off. */
+  delegateFactory?: Address;
 };
 
 const local: NetworkConfig = {
@@ -24,6 +26,8 @@ const local: NetworkConfig = {
   contractAddress: (process.env.NEXT_PUBLIC_LOCAL_CONTRACT ?? "0x5FbDB2315678afecb367f032d93F642f64180aa3") as Address,
   deployBlock: 0,
   isTestnet: true,
+  // Deploy.s.sol deploys the factory right after ReportBond when AUTO_SIGNER is set.
+  delegateFactory: (process.env.NEXT_PUBLIC_LOCAL_DELEGATE_FACTORY || undefined) as Address | undefined,
 };
 
 const configs: Record<string, NetworkConfig> = {

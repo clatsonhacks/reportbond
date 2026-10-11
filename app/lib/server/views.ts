@@ -20,6 +20,10 @@ export function poolView(d: ChainData, priv: PrivateData, p: PoolRow, gh?: Githu
     rulesVersion: rules?.[p.id]?.versions.at(-1)?.version ?? null,
     // Rules are compulsory on a pool linked to GitHub: reporters read them and the agents judge by them.
     acceptingReports: !gh?.verifiedPools[p.id] || Boolean(rules?.[p.id]?.versions.length),
+    autoSlop: priv.autoSlop?.[p.id]
+      ? { threshold: priv.autoSlop[p.id].threshold, active: Boolean(priv.delegates?.[p.verdictSigner]) }
+      : null,
+    signerOwner: priv.delegates?.[p.verdictSigner] ?? null,
   };
 }
 

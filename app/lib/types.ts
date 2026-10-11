@@ -24,6 +24,10 @@ export type PoolView = {
   rulesVersion: number | null;
   /** False while a GitHub-linked pool has no published rules: it can't take reports yet. */
   acceptingReports: boolean;
+  /** Automatic slop rejection, if the creator turned it on. */
+  autoSlop: { threshold: number; active: boolean } | null;
+  /** When the verdict signer is a delegate contract: the wallet that actually signs verdicts. */
+  signerOwner: string | null;
 };
 
 export type TimelineEntryView = {

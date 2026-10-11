@@ -112,4 +112,14 @@ export type TriageRun = {
     reason: string;
   } | null;
   error?: string;
+  /** Set when the report was rejected automatically on the strength of this run. */
+  autoVerdict?: { verdict: "slop"; score: number; threshold: number; tx: string; at: number };
 };
+
+/** How likely the reviewers think a report is slop, 0 to 1. Null when there is no recommendation. */
+export function slopScore(run: TriageRun | null | undefined): number | null {
+  const rec = run?.recommendation;
+  if (!rec) return null;
+  const c = Math.min(1, Math.max(0, rec.confidence));
+  return rec.verdict === "slop" ? c : 1 - c;
+}

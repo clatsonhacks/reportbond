@@ -2,6 +2,7 @@
 // Start the app with NO GitHub credentials, pointed at the mock, writing to a scratch env file:
 //   GITHUB_API_URL=http://127.0.0.1:4010 GITHUB_WEB_URL=http://127.0.0.1:4010 SETUP_ENV_FILE=/tmp/rb-setup.env pnpm dev
 // Then, with the same SETUP_ENV_FILE: pnpm test:github-setup
+// Run both again with GITHUB_APP_STORE=db (and a fresh DATA_DIR) to test how a deployed site saves the app.
 import { generateKeyPairSync } from "node:crypto";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
@@ -9,6 +10,9 @@ import { createServer } from "node:http";
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 const MOCK_PORT = 4010;
 const ENV_FILE = process.env.SETUP_ENV_FILE;
+// With GITHUB_APP_STORE=db on the server and here, tests the deployed-site path instead: the app is
+// saved in the site's storage, not an env file.
+const DB_STORE = process.env.GITHUB_APP_STORE === "db";
 
 let failures = 0;
 function check(name: string, ok: boolean, detail?: unknown) {
@@ -125,6 +129,19 @@ async function main() {
   const state4 = new URL(String(m4.body.action)).searchParams.get("state")!;
   const ok = await call(`/api/github/setup/callback?code=good-code&state=${state4}`, { cookie: stateCookie(m4.headers) });
   check("callback saves the app and returns to the setup page", ok.location.includes("done=1") && ok.location.includes("slug=reportbond-setup-test"), ok.location);
+
+  if (DB_STORE) {
+    // A deployed site: the app is saved in the site's own storage, encrypted, and used at once.
+    check("the site saved the app itself (nothing to copy)", ok.location.includes("saved=db"), ok.location);
+    check("nothing was written to an env file", !existsSync(ENV_FILE));
+    const s1 = await call("/api/github/setup/manifest");
+    check("setup now reports the app as configured", s1.body.configured === true && s1.body.slug === "reportbond-setup-test", s1.body);
+    check("setup can't be run again over an existing app", (await call("/api/github/setup/manifest", { json: {} })).status === 409);
+    check("Connect GitHub is live without a restart", (await call("/api/github/session")).body.configured === true);
+    mock.close();
+    console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
+    process.exit(failures ? 1 : 0);
+  }
 
   const saved = existsSync(ENV_FILE) ? readFileSync(ENV_FILE, "utf8") : "";
   const value = (k: string) => saved.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1];

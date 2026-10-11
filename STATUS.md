@@ -100,7 +100,7 @@ The end-to-end script (`app/scripts/e2e.ts`) runs the same scenarios on anvil an
 - [ ] **Scenario G: smart-wallet signer.** Sign a verdict with a passkey or smart wallet. If it fails, fall back to a normal wallet and note it in the README.
 - [x] **Hosting.** Live at **https://reportbond-nine.vercel.app** (Vercel project `reportbond`, root `app`, Neon Postgres, testnet). Pushes to `main` deploy automatically, but only when the commit author is the Vercel account owner (`clatsonhacks`); other authors are blocked on the free plan.
 - [ ] **After hosting:**
-  - Create the GitHub App for the live site at `/setup/github` (needs `SETUP_SECRET`), add its six values to Vercel, redeploy, then remove `SETUP_SECRET`.
+  - Create the GitHub App for the live site at `/setup/github` (needs `SETUP_SECRET`). The site saves the app's credentials itself; nothing to copy or redeploy.
   - Add repo secrets `APP_URL` (`https://reportbond-nine.vercel.app`) and `CRON_SECRET` so the hourly keeper workflow runs.
   - Create a Postgres database (Neon or Supabase).
   - Create the Vercel project with Root Directory `app`, and set `NETWORK`, `DATABASE_URL`, `RELAYER_PRIVATE_KEY` and `CRON_SECRET`.

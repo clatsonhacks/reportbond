@@ -7,7 +7,7 @@ import { Suspense, useRef, useState } from "react";
 import { Button, ButtonLink, Card, Loading, Notice } from "@/components/ui";
 import { api, post } from "@/lib/api";
 
-type SetupStatus = { configured: boolean; needsSecret: boolean; slug: string | null; reason: string | null };
+type SetupStatus = { configured: boolean; needsSecret: boolean; slug: string | null; reason: string | null; store: "db" | "env-file" };
 
 const errors: Record<string, string> = {
   expired: "That setup link expired or was opened in a different browser. Please start again.",
@@ -81,9 +81,15 @@ function SetupGithub() {
 
       {done && (
         <Notice tone="returned">
-          GitHub App created{params.get("slug") ? ` (${params.get("slug")})` : ""}. Its credentials were saved to{" "}
-          <span className="num">.env</span>. Restart the dev server if Connect GitHub doesn&apos;t appear on the maintainer
-          page.
+          GitHub App created{params.get("slug") ? ` (${params.get("slug")})` : ""}.{" "}
+          {params.get("saved") === "db" ? (
+            <>This site saved its credentials and is using them now. There is nothing to copy and nothing to redeploy.</>
+          ) : (
+            <>
+              Its credentials were saved to <span className="num">.env</span>. Restart the dev server if Connect GitHub
+              doesn&apos;t appear on the maintainer page.
+            </>
+          )}
         </Notice>
       )}
       {failed && <Notice tone="slashed">{errors[failed] ?? "Setup failed. Please start again."}</Notice>}
@@ -146,6 +152,7 @@ function SetupGithub() {
             </Button>
             <p className="text-xs text-ink-muted">
               GitHub will show these settings for you to confirm. Nothing is created until you click Create there.
+              {s?.store === "db" && " When you come back, this site saves the app's credentials itself: there is nothing to copy."}
             </p>
           </form>
         </Card>

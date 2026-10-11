@@ -4,6 +4,7 @@ import { advisoryHashOf, parseAdvisoryUrl, repoIdOf } from "@/lib/advisory";
 import { syncPoolAdvisories } from "@/lib/server/advisorySync";
 import { loadGithub, loadPrivate } from "@/lib/server/db";
 import { githubConfigured } from "@/lib/server/github";
+import { hydrateGithubApp } from "@/lib/server/githubAppStore";
 import { currentSession } from "@/lib/server/githubSession";
 import { syncFresh } from "@/lib/server/indexer";
 import { collectFee, feeView, filingFee, paidFee, paymentRequiredResponse } from "@/lib/server/nano";
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
   }
   // On a pool verified through GitHub we can see the repository's reports, so a deposit is only
   // offered for a report that exists there and was filed by the signed-in GitHub account.
+  await hydrateGithubApp();
   const verified = githubConfigured() ? (await loadGithub()).verifiedPools[String(poolId)] : undefined;
   if (verified) {
     const session = await currentSession();

@@ -1,6 +1,7 @@
 // Writes verdicts back to GitHub: Valid accepts the advisory (draft), Mistake and Slop close it.
 // Safe to run any number of times; each verdict is synced once, failures are recorded and retried.
 import "server-only";
+import { hydrateGithubApp } from "./githubAppStore";
 import { loadGithub, updateGithub } from "./db";
 import { setAdvisoryState, githubConfigured } from "./github";
 import { syncFresh } from "./indexer";
@@ -11,6 +12,7 @@ export type SyncResult = { synced: string[]; failed: { ghsa: string; error: stri
 
 export async function syncAdvisoryStates(): Promise<SyncResult> {
   const result: SyncResult = { synced: [], failed: [] };
+  await hydrateGithubApp();
   if (!githubConfigured()) return result;
   const [chain, gh] = await Promise.all([syncFresh(), loadGithub()]);
   const installationFor = new Map(Object.values(gh.verifiedPools).map((v) => [v.repo, v.installationId]));

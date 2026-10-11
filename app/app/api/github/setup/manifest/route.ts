@@ -1,16 +1,20 @@
 // GET tells the setup page whether setup is available; POST returns the pre-filled app definition
 // for the page to send to GitHub.
+import { githubAppStore, hydrateGithubApp } from "@/lib/server/githubAppStore";
 import { newToken, setState } from "@/lib/server/githubSession";
 import { buildManifest, manifestAction, setupAccess } from "@/lib/server/githubSetup";
 import { bad, json } from "@/lib/server/views";
 
 export async function GET() {
+  await hydrateGithubApp();
   const access = setupAccess(null);
   return json({
     configured: !access.allowed && !access.needsSecret,
     needsSecret: access.needsSecret,
     slug: process.env.GITHUB_APP_SLUG ?? null,
     reason: access.reason ?? null,
+    // Where the new app's credentials will go: this site's database, or the local .env file.
+    store: githubAppStore,
   });
 }
 
@@ -21,6 +25,7 @@ export async function POST(req: Request) {
     organization?: string;
     secret?: string;
   };
+  await hydrateGithubApp();
   const access = setupAccess(b.secret ?? null);
   if (!access.allowed) return bad(access.reason ?? "Setup is not available", access.needsSecret ? 401 : 409);
 

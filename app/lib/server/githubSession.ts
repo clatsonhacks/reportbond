@@ -1,5 +1,6 @@
 // Maintainer GitHub sessions: a random ID in an httpOnly cookie, the data server-side.
 import "server-only";
+import { hydrateGithubApp } from "./githubAppStore";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { loadGithub, updateGithub, type GithubRepo } from "./db";
@@ -28,6 +29,7 @@ export async function createSession(login: string, repos: GithubRepo[]): Promise
 }
 
 export async function currentSession(): Promise<{ login: string; repos: GithubRepo[] } | null> {
+  await hydrateGithubApp();
   const sid = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!sid) return null;
   const s = (await loadGithub()).sessions[sid];

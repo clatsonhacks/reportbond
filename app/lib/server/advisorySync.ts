@@ -4,6 +4,7 @@
 import "server-only";
 import { loadGithub, updateGithub } from "./db";
 import { GithubError, githubConfigured } from "./github";
+import { hydrateGithubApp } from "./githubAppStore";
 import { listAdvisories } from "./repo";
 import { trackedFromWebhook } from "./tracker";
 
@@ -18,6 +19,7 @@ const unavailable = ((globalThis as { __rbAdvisoryUnavailable?: Set<string> })._
  * vulnerability reports for the repository: it is private, or the feature is off.
  */
 export async function syncPoolAdvisories(poolId: string, force = false): Promise<boolean> {
+  await hydrateGithubApp();
   if (!githubConfigured()) return true;
   const verified = (await loadGithub()).verifiedPools[poolId];
   if (!verified) return true;

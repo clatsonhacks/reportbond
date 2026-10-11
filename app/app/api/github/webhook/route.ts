@@ -2,6 +2,7 @@
 // Configure the app to send installation, installation_repositories and repository_advisory events here.
 import { updateGithub, type GithubRepo } from "@/lib/server/db";
 import { githubConfigured, verifyWebhookSignature } from "@/lib/server/github";
+import { hydrateGithubApp } from "@/lib/server/githubAppStore";
 import { trackedFromWebhook } from "@/lib/server/tracker";
 import { bad, json } from "@/lib/server/views";
 
@@ -10,6 +11,7 @@ type Repo = { id: number; full_name: string };
 type Payload = any;
 
 export async function POST(req: Request) {
+  await hydrateGithubApp();
   if (!githubConfigured()) return bad("GitHub isn't configured", 503);
   const raw = await req.text();
   if (!verifyWebhookSignature(raw, req.headers.get("x-hub-signature-256"))) return bad("Bad signature", 401);

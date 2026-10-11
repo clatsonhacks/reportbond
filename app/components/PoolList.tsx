@@ -5,19 +5,20 @@ import { usePools, useStatus } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { Amount, Empty, Loading, Notice } from "./ui";
 import { VerifiedBadge } from "./VerifiedBadge";
-import { Status } from "@/lib/eip712";
+import type { Outcomes, PoolView } from "@/lib/types";
 
-// Sample track record data
-const sampleTrackRecord: Record<number, { valid: number; mistake: number; slop: number; refunded: number }> = {
-  1: { valid: 6, mistake: 0, slop: 1, refunded: 0 },
-  2: { valid: 5, mistake: 2, slop: 0, refunded: 1 },
-  3: { valid: 5, mistake: 0, slop: 2, refunded: 0 },
-  4: { valid: 0, mistake: 0, slop: 0, refunded: 0 },
-  5: { valid: 1, mistake: 0, slop: 0, refunded: 0 },
+export type PoolSort = "bounty" | "response" | "bond";
+
+/** The most one valid report can earn right now: the pool's cap, or what's left in it if that is less. */
+const maxBounty = (p: PoolView) => (BigInt(p.maxPayout) < BigInt(p.available) ? BigInt(p.maxPayout) : BigInt(p.available));
+const compare = (a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0);
+const sorters: Record<PoolSort, (a: PoolView, b: PoolView) => number> = {
+  bounty: (a, b) => compare(maxBounty(b), maxBounty(a)),
+  response: (a, b) => a.timeout - b.timeout,
+  bond: (a, b) => compare(BigInt(a.depositAmount), BigInt(b.depositAmount)),
 };
 
-function TrackRecordBar({ poolId }: { poolId: number }) {
-  const record = sampleTrackRecord[poolId] || { valid: 0, mistake: 0, slop: 0, refunded: 0 };
+function TrackRecordBar({ record }: { record: Outcomes }) {
   const total = record.valid + record.mistake + record.slop + record.refunded;
   if (total === 0) return <span className="text-xs text-ink-muted">No history</span>;
 
@@ -56,7 +57,7 @@ function TrackRecordBar({ poolId }: { poolId: number }) {
   );
 }
 
-export function PoolList({ creator }: { creator?: string }) {
+export function PoolList({ creator, sort }: { creator?: string; sort?: PoolSort }) {
   const status = useStatus();
   const { data, isLoading, error } = usePools(creator);
 
@@ -69,7 +70,7 @@ export function PoolList({ creator }: { creator?: string }) {
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
-      {data.pools.map((p) => (
+      {(sort ? [...data.pools].sort(sorters[sort]) : data.pools).map((p) => (
         <Link
           key={p.id}
           href={creator ? `/maintainer/pool/${p.id}` : `/pool/${p.id}`}
@@ -79,7 +80,7 @@ export function PoolList({ creator }: { creator?: string }) {
           <div className="mb-4 flex items-start justify-between">
             <div>
               <h3 className="font-semibold text-ink group-hover:text-brand state-change">
-                {p.repoName ?? `[owner/repo-${p.id}]`}
+                {p.repoName ?? `Pool #${p.id}`}
               </h3>
               {p.verifiedBy && (
                 <div className="mt-1">
@@ -95,10 +96,7 @@ export function PoolList({ creator }: { creator?: string }) {
           {/* Max bounty - prominent */}
           <div className="mb-4">
             <div className="text-xs uppercase tracking-wider text-ink-muted">Max bounty</div>
-            <div className="flex items-baseline gap-1">
-              <Amount value={p.available} className="text-2xl font-bold" />
-              <span className="text-sm text-ink-muted">USDC</span>
-            </div>
+            <Amount value={maxBounty(p)} className="text-2xl font-bold" />
           </div>
 
           {/* Stats row */}
@@ -119,7 +117,7 @@ export function PoolList({ creator }: { creator?: string }) {
 
           {/* Track record bar */}
           <div className="mt-3 border-t border-line pt-3">
-            <TrackRecordBar poolId={p.id} />
+            <TrackRecordBar record={p.outcomes} />
           </div>
 
           {/* Open reports badge for maintainer view */}

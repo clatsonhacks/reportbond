@@ -1,12 +1,12 @@
 import { ButtonLink } from "@/components/ui";
-import { PoolList } from "@/components/PoolList";
+import { OpenPools } from "@/components/OpenPools";
 import { PoolNetworkGraph } from "@/components/graph/PoolNetwork";
 
 const steps = [
   {
     number: "1",
     title: "Bond your report",
-    description: "Link a private GitHub advisory and pay the pool's deposit plus a 1% fee.",
+    description: "Link a private GitHub advisory and pay the pool's deposit.",
   },
   {
     number: "2",
@@ -57,7 +57,6 @@ export default function Home() {
                 {/* Pool hub center */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                   <div className="node-hub h-12 w-12 flex items-center justify-center">
-                    <span className="num text-[10px] font-semibold text-white">100.00</span>
                   </div>
                 </div>
                 {/* Orbiting report satellites */}
@@ -128,21 +127,11 @@ export default function Home() {
 
       {/* Pool Network Graph */}
       <section className="mx-auto max-w-7xl px-6 sm:px-12 py-10 space-y-4 slide-up">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black tracking-tight">Pool network</h2>
-            <p className="text-sm text-ink-muted">
-              Each pool sits at the centre of its reports. Reporters who work across pools link them together.
-            </p>
-          </div>
-          <div className="hidden sm:flex gap-1">
-            <button type="button" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-card">
-              Map
-            </button>
-            <button type="button" className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface state-change">
-              Grid
-            </button>
-          </div>
+        <div>
+          <h2 className="text-xl font-black tracking-tight">Pool network</h2>
+          <p className="text-sm text-ink-muted">
+            Each pool sits at the centre of its reports. Reporters who work across pools link them together.
+          </p>
         </div>
         <div className="rounded-2xl border border-line bg-card p-4">
           <PoolNetworkGraph />
@@ -189,24 +178,7 @@ export default function Home() {
 
       {/* Open Pools */}
       <section id="pools" className="mx-auto max-w-7xl px-6 sm:px-12 pb-16 space-y-4 scroll-mt-8 slide-up">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-xl font-black tracking-tight">Open pools</h2>
-            <p className="text-xs text-ink-muted uppercase tracking-wider">Sample data</p>
-          </div>
-          <div className="flex gap-1 overflow-x-auto">
-            <button type="button" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-card whitespace-nowrap">
-              Highest bounty
-            </button>
-            <button type="button" className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface state-change whitespace-nowrap">
-              Fastest response
-            </button>
-            <button type="button" className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface state-change whitespace-nowrap">
-              Lowest bond
-            </button>
-          </div>
-        </div>
-        <PoolList />
+        <OpenPools />
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-muted pt-2">

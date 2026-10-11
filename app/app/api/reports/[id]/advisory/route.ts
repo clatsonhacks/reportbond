@@ -1,11 +1,16 @@
 // Advisory links are private: putting them on-chain would announce an unfixed vulnerability.
 // POST stores a link (accepted only if it hashes to the report's on-chain advisoryHash).
 // GET returns it only to the reporter or the pool creator, after wallet sign-in.
+import { after } from "next/server";
 import { advisoryHashOf, parseAdvisoryUrl } from "@/lib/advisory";
+import { autoTriage } from "@/lib/server/autoTriage";
 import { loadPrivate, updatePrivate } from "@/lib/server/db";
 import { ensureFresh, syncFresh } from "@/lib/server/indexer";
 import { signedInAddress } from "@/lib/server/session";
 import { bad, json } from "@/lib/server/views";
+
+// The review started below keeps running after the response is sent.
+export const maxDuration = 300;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,6 +29,9 @@ export async function POST(req: Request, { params }: Ctx) {
   await updatePrivate((priv) => {
     priv.advisoryLinks[id] = parsed.url;
   });
+  // The deposit is paid, so the agents review the report now; the maintainer finds their
+  // recommendation waiting. It does nothing on pools without GitHub, rules or a model.
+  after(() => autoTriage(String(r.poolId), parsed.ghsa).then(() => undefined));
   return json({ ok: true });
 }
 

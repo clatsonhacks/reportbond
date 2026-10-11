@@ -2,6 +2,7 @@
 
 Refundable USDC deposits for private security reports on GitHub, settled on Arc.
 
+
 A reporter pays a small deposit when filing a private vulnerability report. The repo's maintainer signs a verdict:
 
 | Verdict | Deposit |

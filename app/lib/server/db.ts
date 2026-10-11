@@ -277,6 +277,20 @@ export function updateGithub(fn: (d: GithubData) => void): Promise<void> {
   return store.updateRecord("github", emptyGithub, fn);
 }
 
+/** A deployed site's GitHub App credentials, encrypted (see githubAppStore.ts). */
+export type GithubAppRecord = { slug: string; savedAt: number; iv: string; tag: string; data: string };
+const emptyApp = (): { app: GithubAppRecord | null } => ({ app: null });
+
+export async function loadGithubAppRecord(): Promise<GithubAppRecord | null> {
+  return (await store.getRecord("githubApp", emptyApp)).app;
+}
+
+export function saveGithubAppRecord(app: GithubAppRecord): Promise<void> {
+  return store.updateRecord("githubApp", emptyApp, (d) => {
+    d.app = app;
+  });
+}
+
 // ------------------------------------------------------------ rules and triage
 
 import type { Rulebook, RulebookVersion, TriageRun } from "../rules";

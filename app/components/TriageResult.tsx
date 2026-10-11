@@ -59,6 +59,12 @@ export function TriageResult({ run }: { run: TriageRun }) {
           )}
         </div>
       )}
+      {run.autoVerdict && (
+        <p className="font-medium text-slashed">
+          Rejected automatically: both reviewers rated it {run.autoVerdict.score}% likely to be slop, at or above this
+          pool&apos;s {run.autoVerdict.threshold}% threshold.
+        </p>
+      )}
       {run.triage && <p>{run.triage.summary}</p>}
       {rec && <p className={rec.needsHuman ? "text-waiting" : "text-ink-muted"}>{rec.reason}</p>}
       {(run.triage?.injectionSuspected || run.critic?.injectionSuspected) && (

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { isAddress, parseEventLogs, type Address } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { SlopThreshold } from "@/components/AutoSlopSettings";
 import { GithubConnect, GithubSignInButton } from "@/components/GithubConnect";
 import { PoolList } from "@/components/PoolList";
 import { TxStatus } from "@/components/TxStatus";
@@ -12,6 +13,7 @@ import { WalletGate } from "@/components/WalletGate";
 import { post } from "@/lib/api";
 import { repoIdOf } from "@/lib/advisory";
 import { reportBond } from "@/lib/contract";
+import { AUTO_SLOP_DEFAULT, delegateFactory, ZERO_ADDRESS } from "@/lib/delegate";
 import { formatUsdc, parseUsdc } from "@/lib/format";
 import { connectHref, useGithubSession } from "@/lib/github";
 import { config } from "@/lib/network";
@@ -72,12 +74,15 @@ function CreatePool() {
   const [maxPayout, setMaxPayout] = useState(config.network === "mainnet" ? "1" : "50");
   const [funding, setFunding] = useState(config.network === "mainnet" ? "2" : "10");
   const [signer, setSigner] = useState("");
+  // On by default wherever the chain has the delegate factory: clear slop is rejected without the maintainer.
+  const [autoSlop, setAutoSlop] = useState(delegateFactory !== null);
+  const [threshold, setThreshold] = useState(AUTO_SLOP_DEFAULT);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
-    const verdictSigner = (signer.trim() || address) as Address;
+    let verdictSigner = (signer.trim() || address) as Address;
     let values: { dep: bigint; max: bigint; fund: bigint; timeout: bigint };
     try {
       if (!repo.trim()) throw new Error("Choose a repository first: sign in with GitHub and pick one.");
@@ -97,6 +102,20 @@ function CreatePool() {
       return;
     }
 
+    if (autoSlop && delegateFactory && client) {
+      // The pool's verdict signer becomes this maintainer's delegate: their wallet signs any verdict
+      // through it, and the AI reviewer can sign Slop only. It is created once and reused for later pools.
+      const owner = verdictSigner;
+      const find = () => client.readContract({ ...delegateFactory!, functionName: "delegateOf", args: [owner] });
+      let delegate = await find();
+      if (delegate === ZERO_ADDRESS) {
+        const made = await tx.run(() => writeContractAsync({ ...delegateFactory!, functionName: "create", args: [owner] }));
+        if (!made) return;
+        delegate = await find();
+      }
+      verdictSigner = delegate;
+    }
+
     const hash = await tx.run(() =>
       writeContractAsync({
         ...reportBond,
@@ -110,6 +129,13 @@ function CreatePool() {
     const [ev] = parseEventLogs({ abi: reportBond.abi, eventName: "PoolCreated", logs: receipt.logs });
     const poolId = ev.args.poolId.toString();
     const name = repo.trim().toLowerCase();
+    if (autoSlop) {
+      try {
+        await post(`/api/pools/${poolId}/auto-slop`, { threshold }, { authorization: `Bearer ${await signIn()}` });
+      } catch {
+        // The pool exists; the threshold can be set from its page.
+      }
+    }
     let verify = "";
     if (ghRepos.includes(name)) {
       // Link the pool to the repo through GitHub: proves this wallet's owner administers it.
@@ -211,6 +237,20 @@ function CreatePool() {
             The wallet that signs verdicts. Leave empty to use this wallet. It can&apos;t be changed later.
           </span>
         </label>
+        <div className="space-y-3 rounded-[8px] border border-line bg-surface p-3 sm:col-span-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={autoSlop} onChange={(e) => setAutoSlop(e.target.checked)} className="h-4 w-4" />
+            {delegateFactory ? "Reject clear slop automatically" : "Flag clear slop"}
+          </label>
+          <p className="text-xs text-ink-muted">
+            The AI reviews every paid report.{" "}
+            {delegateFactory
+              ? "When both reviewers agree a report is slop and are sure enough, it is rejected without waiting for you and the deposit goes to your pool. Less certain reports always wait for your decision, and the AI can never mark a report valid or pay a bounty."
+              : "Reports it is sure enough about are flagged for you."}
+            {autoSlop && delegateFactory && " The first time, your wallet confirms one extra transaction that sets this up."}
+          </p>
+          {autoSlop && <SlopThreshold value={threshold} onChange={setThreshold} disabled={tx.busy} />}
+        </div>
         <div className="space-y-3 sm:col-span-2">
           {formError && <Notice tone="slashed">{formError}</Notice>}
           <Button type="submit" disabled={tx.busy}>

@@ -47,6 +47,13 @@ export default function PoolPage() {
         <p className="mt-2 text-sm text-ink-muted">
           Bounties up to <Amount value={pool.maxPayout} /> per valid report, paid from the pool.
         </p>
+        {pool.autoSlop?.active && (
+          <p className="mt-2 text-sm text-ink-muted">
+            Every report is reviewed by AI first. One that both AI reviewers rate at least{" "}
+            <span className="num">{pool.autoSlop.threshold}%</span> likely to be slop is rejected automatically and loses
+            its deposit; everything else is decided by the maintainer.
+          </p>
+        )}
 
         <div className="mt-6">
           {pool.acceptingReports ? (

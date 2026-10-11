@@ -198,6 +198,12 @@ export default function ReportFlow() {
             or if the maintainer doesn&apos;t answer by {deadline}. You lose it only if the report is judged low-effort
             or fabricated.
           </p>
+          {pool.autoSlop?.active && (
+            <p className="text-sm text-ink-muted">
+              This pool reviews reports with AI first: one rated at least {pool.autoSlop.threshold}% likely to be slop
+              by both AI reviewers is rejected automatically.
+            </p>
+          )}
           {BigInt(pool.available) > 0n && (
             <p className="text-sm text-ink-muted">
               A valid report can also earn a bounty of up to <Amount value={pool.maxPayout} />.

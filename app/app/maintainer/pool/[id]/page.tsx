@@ -5,8 +5,9 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { Hex } from "viem";
 import { useAccount, useSignTypedData, useWriteContract } from "wagmi";
+import { AutoSlopSettings } from "@/components/AutoSlopSettings";
 import { GithubReports } from "@/components/GithubReports";
-import type { TriageRun } from "@/lib/rules";
+import { slopScore, type TriageRun } from "@/lib/rules";
 import { RulesEditor } from "@/components/RulesEditor";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, Card, Empty, Loading, Notice, Row } from "@/components/ui";
@@ -31,12 +32,25 @@ export default function MaintainerPool() {
   const { address } = useAccount();
   // The AI's latest review of each open report, by on-chain report ID.
   const [reviews, setReviews] = useState<Record<number, TriageRun>>({});
+  // Reports the AI rates above this are hidden from the queue (100 shows everything).
+  const [maxSlop, setMaxSlop] = useState(100);
 
   if (isLoading) return <Loading />;
   if (error || !data) return <Notice tone="slashed">{error?.message ?? "Pool not found"}</Notice>;
   const { pool } = data;
   const isCreator = address?.toLowerCase() === pool.creator;
-  const isSigner = address?.toLowerCase() === pool.verdictSigner;
+  // With automatic rejection on, the on-chain signer is a delegate contract that answers to this wallet.
+  const signerWallet = pool.signerOwner ?? pool.verdictSigner;
+  const isSigner = address?.toLowerCase() === signerWallet;
+  // The queue, most promising first: least likely to be slop at the top, not yet reviewed at the end.
+  const percent = (id: number) => {
+    const s = slopScore(reviews[id]);
+    return s === null ? null : Math.round(s * 100);
+  };
+  const ranked = [...(queue.data?.reports ?? [])].sort((a, b) => (percent(a.id) ?? 101) - (percent(b.id) ?? 101));
+  const shown = ranked.filter((r) => (percent(r.id) ?? 0) <= maxSlop);
+  const hidden = ranked.length - shown.length;
+  const anyReviewed = ranked.some((r) => percent(r.id) !== null);
   const poolUrl = typeof window !== "undefined" ? `${window.location.origin}/pool/${pool.id}` : `/pool/${pool.id}`;
   // Rules are compulsory: the pool takes no reports until its creator publishes them.
   const needsRules = Boolean(pool.verifiedBy) && pool.rulesVersion === null;
@@ -87,7 +101,7 @@ export default function MaintainerPool() {
         {needsRules && isCreator && <RulesEditor pool={pool} required />}
         {!isSigner && (
           <Notice tone="waiting">
-            Verdicts for this pool must be signed by <span className="num">{shortAddress(pool.verdictSigner)}</span>.
+            Verdicts for this pool must be signed by <span className="num">{shortAddress(signerWallet)}</span>.
             Connect that wallet to review reports.
           </Notice>
         )}
@@ -96,13 +110,37 @@ export default function MaintainerPool() {
           <h2 className="font-semibold">
             Review queue <span className="text-ink-muted">({queue.data?.reports.length ?? 0})</span>
           </h2>
+          {anyReviewed && (
+            <label className="block max-w-md space-y-1 text-sm">
+              <span className="flex items-baseline justify-between">
+                <span>Show reports up to this slop probability</span>
+                <span className="num font-semibold">{maxSlop}%</span>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={maxSlop}
+                onChange={(e) => setMaxSlop(Number(e.target.value))}
+                className="w-full accent-[var(--accent)]"
+                aria-label="Highest slop probability to show, percent"
+              />
+              <span className="block text-xs text-ink-muted">
+                Sorted by the AI&apos;s slop probability, most promising first.
+                {hidden > 0 && ` ${hidden} hidden above ${maxSlop}%.`}
+              </span>
+            </label>
+          )}
           {queue.isLoading ? (
             <Loading />
           ) : !queue.data?.reports.length ? (
             <Empty>No reports waiting. Nice.</Empty>
+          ) : shown.length === 0 ? (
+            <Empty>All {ranked.length} waiting reports are above {maxSlop}% slop. Move the slider to see them.</Empty>
           ) : (
             <ul className="space-y-3">
-              {queue.data.reports.map((r) => (
+              {shown.map((r) => (
                 <ReviewItem key={r.id} report={r} pool={pool} canSign={isSigner} onDone={refresh} review={reviews[r.id]} />
               ))}
             </ul>
@@ -116,6 +154,8 @@ export default function MaintainerPool() {
             setReviews(Object.fromEntries(list.filter((x) => x.reportId !== null && x.triage).map((x) => [x.reportId!, x.triage!])))
           }
         />
+
+        {isCreator && <AutoSlopSettings pool={pool} />}
 
         {isCreator && !needsRules && <RulesEditor pool={pool} />}
 
@@ -269,10 +309,10 @@ function ReviewItem({
           <span className={review.recommendation.verdict === "slop" ? "font-medium text-slashed" : "font-medium text-returned"}>
             {aiVerdict[review.recommendation.verdict]}
           </span>{" "}
-          <span className="text-ink-muted">
-            ({Math.round(review.recommendation.confidence * 100)}% sure). The reasoning is under GitHub reports below. You
-            decide.
-          </span>
+          <span className="num rounded-full bg-surface px-2 py-0.5 text-xs font-medium">
+            {Math.round((slopScore(review) ?? 0) * 100)}% slop
+          </span>{" "}
+          <span className="text-ink-muted">The reasoning is under GitHub reports below. You decide.</span>
         </p>
       )}
       {review?.error && <p className="mt-2 text-sm text-ink-muted">The AI review didn&apos;t finish: {review.error}</p>}

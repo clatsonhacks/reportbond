@@ -128,6 +128,12 @@ export default function ReportFlow() {
 
       <div className="mx-auto max-w-3xl px-6 sm:px-12 py-8 space-y-6">
 
+      {!pool.acceptingReports && step === 1 && (
+        <Notice tone="waiting">
+          This pool isn&apos;t taking reports yet: its maintainer hasn&apos;t published the bounty rules.
+        </Notice>
+      )}
+
       {step === 1 && feeDue && (
         <Card>
           <FilingFee
@@ -143,7 +149,7 @@ export default function ReportFlow() {
         </Card>
       )}
 
-      {step === 1 && !feeDue && (
+      {step === 1 && !feeDue && pool.acceptingReports && (
         <Card>
           {pool.verifiedBy ? (
             <div className="space-y-4">

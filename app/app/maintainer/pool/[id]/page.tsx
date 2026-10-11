@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Hex } from "viem";
 import { useAccount, useSignTypedData, useWriteContract } from "wagmi";
 import { GithubReports } from "@/components/GithubReports";
+import type { TriageRun } from "@/lib/rules";
 import { RulesEditor } from "@/components/RulesEditor";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, Card, Empty, Loading, Notice, Row } from "@/components/ui";
@@ -28,6 +29,8 @@ export default function MaintainerPool() {
   const { data, isLoading, error, refetch } = usePool(id);
   const queue = useReports({ pool: id, open: "1" });
   const { address } = useAccount();
+  // The AI's latest review of each open report, by on-chain report ID.
+  const [reviews, setReviews] = useState<Record<number, TriageRun>>({});
 
   if (isLoading) return <Loading />;
   if (error || !data) return <Notice tone="slashed">{error?.message ?? "Pool not found"}</Notice>;
@@ -35,6 +38,8 @@ export default function MaintainerPool() {
   const isCreator = address?.toLowerCase() === pool.creator;
   const isSigner = address?.toLowerCase() === pool.verdictSigner;
   const poolUrl = typeof window !== "undefined" ? `${window.location.origin}/pool/${pool.id}` : `/pool/${pool.id}`;
+  // Rules are compulsory: the pool takes no reports until its creator publishes them.
+  const needsRules = Boolean(pool.verifiedBy) && pool.rulesVersion === null;
 
   const refresh = () => {
     refetch();
@@ -54,13 +59,21 @@ export default function MaintainerPool() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 sm:px-12 py-8 space-y-6">
-      {created && (
-        <Notice tone="returned">
-          Pool created. Add this to your repo&apos;s <span className="num">SECURITY.md</span> so reporters find it:
-          <pre className="num mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-card p-2 text-xs">
-            {`Private reports require a refundable deposit: ${poolUrl}`}
-          </pre>
+      {needsRules ? (
+        <Notice tone="waiting">
+          <strong>{created ? "Pool created. One step left: publish the bounty rules." : "Publish the bounty rules to open this pool."}</strong>{" "}
+          Reporters read them before reporting and the AI reviewers judge every report against them, so the pool takes
+          no reports until they are published.
         </Notice>
+      ) : (
+        created && (
+          <Notice tone="returned">
+            Pool created. Add this to your repo&apos;s <span className="num">SECURITY.md</span> so reporters find it:
+            <pre className="num mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-card p-2 text-xs">
+              {`Private reports require a refundable deposit: ${poolUrl}`}
+            </pre>
+          </Notice>
+        )
       )}
 
       {verifyFailed && (
@@ -71,6 +84,7 @@ export default function MaintainerPool() {
       )}
 
       <WalletGate>
+        {needsRules && isCreator && <RulesEditor pool={pool} required />}
         {!isSigner && (
           <Notice tone="waiting">
             Verdicts for this pool must be signed by <span className="num">{shortAddress(pool.verdictSigner)}</span>.
@@ -89,15 +103,21 @@ export default function MaintainerPool() {
           ) : (
             <ul className="space-y-3">
               {queue.data.reports.map((r) => (
-                <ReviewItem key={r.id} report={r} pool={pool} canSign={isSigner} onDone={refresh} />
+                <ReviewItem key={r.id} report={r} pool={pool} canSign={isSigner} onDone={refresh} review={reviews[r.id]} />
               ))}
             </ul>
           )}
         </section>
 
-        <GithubReports pool={pool} isCreator={isCreator} />
+        <GithubReports
+          pool={pool}
+          isCreator={isCreator}
+          onReports={(list) =>
+            setReviews(Object.fromEntries(list.filter((x) => x.reportId !== null && x.triage).map((x) => [x.reportId!, x.triage!])))
+          }
+        />
 
-        {isCreator && <RulesEditor pool={pool} />}
+        {isCreator && !needsRules && <RulesEditor pool={pool} />}
 
         <PoolMoney pool={pool} isCreator={isCreator} onDone={refresh} />
       </WalletGate>
@@ -106,16 +126,20 @@ export default function MaintainerPool() {
   );
 }
 
+const aiVerdict = { valid: "looks valid", mistake: "looks like an honest mistake", slop: "looks like slop" } as const;
+
 function ReviewItem({
   report: r,
   pool,
   canSign,
   onDone,
+  review,
 }: {
   report: ReportView;
   pool: PoolView;
   canSign: boolean;
   onDone: () => void;
+  review?: TriageRun;
 }) {
   const now = useNow();
   const { signTypedDataAsync } = useSignTypedData();
@@ -239,6 +263,19 @@ function ReviewItem({
           <span className="text-ink-muted">Advisory link not stored; check GitHub</span>
         )}
       </div>
+      {review?.recommendation && (
+        <p className="mt-2 text-sm">
+          <span className="text-ink-muted">AI review:</span>{" "}
+          <span className={review.recommendation.verdict === "slop" ? "font-medium text-slashed" : "font-medium text-returned"}>
+            {aiVerdict[review.recommendation.verdict]}
+          </span>{" "}
+          <span className="text-ink-muted">
+            ({Math.round(review.recommendation.confidence * 100)}% sure). The reasoning is under GitHub reports below. You
+            decide.
+          </span>
+        </p>
+      )}
+      {review?.error && <p className="mt-2 text-sm text-ink-muted">The AI review didn&apos;t finish: {review.error}</p>}
       {link && <p className="num mt-2 break-all text-xs text-ink-muted">{link}</p>}
       {linkErr && <p className="mt-2 text-sm text-slashed">{linkErr}</p>}
 

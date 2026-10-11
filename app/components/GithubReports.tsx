@@ -2,12 +2,13 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 import { api, post } from "@/lib/api";
 import { connectHref, useGithubSession, type TrackedReportView } from "@/lib/github";
 import { formatDate } from "@/lib/format";
 import type { PoolView } from "@/lib/types";
-import { useSignIn } from "@/lib/useSignIn";
+import { savedSignInToken, useSignIn } from "@/lib/useSignIn";
 import type { TriageRun } from "@/lib/rules";
 import { StatusPill } from "./StatusPill";
 import { TriageResult } from "./TriageResult";
@@ -28,14 +29,56 @@ const bondLabel: Record<TrackedReportView["bond"], { text: string; cls: string }
 };
 
 /** The pool's link to GitHub: verify it, then see private reports filed on GitHub and their deposit status. */
-export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: boolean }) {
+export function GithubReports({
+  pool,
+  isCreator,
+  onReports,
+}: {
+  pool: PoolView;
+  isCreator: boolean;
+  /** Told about the reports whenever they load or a review finishes, so the review queue can show the AI's view. */
+  onReports?: (reports: TrackedReportView[]) => void;
+}) {
   const github = useGithubSession();
+  const { address } = useAccount();
   const signIn = useSignIn();
   const qc = useQueryClient();
   const [reports, setReports] = useState<TrackedReportView[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewing, setReviewing] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState<Set<string>>(new Set());
+  const [waits, setWaits] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const usable = Boolean(github.data?.configured && isCreator && pool.verifiedBy);
+
+  // Already signed in with the wallet: show the reports without asking for a click.
+  useEffect(() => {
+    if (usable && reports === null && !busy && savedSignInToken(address)) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once the pool and wallet are known
+  }, [usable, address]);
+
+  useEffect(() => {
+    if (reports) onReports?.(reports);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the callback isn't a trigger
+  }, [reports]);
+
+  // Every report with a deposit gets a review. The server starts one when the deposit is paid; this
+  // catches any it missed (a report paid for before the rules were published, or a run cut short).
+  const pending = pool.rulesVersion !== null ? reports?.find((r) => r.bond === "bonded" && r.triage === null && !attempted.has(r.ghsa)) : undefined;
+  useEffect(() => {
+    if (!pending || reviewing !== null) return;
+    // The server's own review may still be running: look again a few times before starting another.
+    if (waits < 5) {
+      const t = setTimeout(() => {
+        setWaits((n) => n + 1);
+        void load();
+      }, 20_000);
+      return () => clearTimeout(t);
+    }
+    setAttempted((s) => new Set(s).add(pending.ghsa));
+    void review(pending.ghsa);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one review at a time, each report once
+  }, [pending?.ghsa, reviewing, waits]);
 
   if (!github.data?.configured || !isCreator) {
     return pool.verifiedBy ? <VerifiedBadge login={pool.verifiedBy} /> : null;
@@ -124,7 +167,8 @@ export function GithubReports({ pool, isCreator }: { pool: PoolView; isCreator: 
       ) : reports === null ? (
         <div className="space-y-2">
           <p className="text-sm text-ink-muted">
-            Private vulnerability reports filed on GitHub, and whether each reporter has paid the deposit.
+            Private vulnerability reports filed on GitHub, whether each reporter has paid the deposit, and what the AI
+            reviewers found.
           </p>
           <Button variant="secondary" onClick={load} disabled={busy}>
             {busy ? "Loading…" : "Show GitHub reports"}

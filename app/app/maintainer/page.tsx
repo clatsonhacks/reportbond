@@ -61,9 +61,10 @@ function CreatePool() {
   const quick = config.isTestnet;
   const github = useGithubSession();
   const ghRepos = github.data?.connected ? github.data.repos : [];
+  // Typing a repo by hand is only for sites with no GitHub App: a pool the app can't read gets no AI review.
+  const githubAvailable = github.data?.configured !== false;
 
   const [repo, setRepo] = useState("");
-  const [manualRepo, setManualRepo] = useState(false);
   // Deposits are meant to be nano payments: enough to make mass-produced reports cost something.
   const [deposit, setDeposit] = useState("0.001");
   const [timeoutValue, setTimeoutValue] = useState(quick ? "5" : "14");
@@ -79,7 +80,7 @@ function CreatePool() {
     const verdictSigner = (signer.trim() || address) as Address;
     let values: { dep: bigint; max: bigint; fund: bigint; timeout: bigint };
     try {
-      if (!repo.trim()) throw new Error("Choose a repository first: sign in with GitHub, or type one.");
+      if (!repo.trim()) throw new Error("Choose a repository first: sign in with GitHub and pick one.");
       if (!REPO_RE.test(repo.trim())) throw new Error("Repo must look like owner/repo");
       if (!isAddress(verdictSigner)) throw new Error("Verdict signer isn't a valid address");
       const t = Number(timeoutValue);
@@ -131,7 +132,7 @@ function CreatePool() {
       <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <span className="text-sm font-medium">GitHub repository</span>
-          {manualRepo ? (
+          {!githubAvailable ? (
             <input className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" aria-label="GitHub repository" required />
           ) : ghRepos.length > 0 ? (
             <select className={`${field} num`} value={repo} onChange={(e) => setRepo(e.target.value)} aria-label="GitHub repository" required>
@@ -156,21 +157,11 @@ function CreatePool() {
             </div>
           )}
           <span className="block text-xs text-ink-muted">
-            {manualRepo
-              ? "A typed repo shows as unverified: reporters can't tell that you maintain it."
+            {!githubAvailable
+              ? "GitHub isn't set up on this site, so the pool will be unverified and reports won't be reviewed by AI."
               : ghRepos.length > 0
-                ? "Verified through GitHub: reporters see who maintains this pool."
-                : "Sign in to pick your repository from a list. Nothing to type or paste."}{" "}
-            <button
-              type="button"
-              className="underline underline-offset-2"
-              onClick={() => {
-                setManualRepo(!manualRepo);
-                setRepo("");
-              }}
-            >
-              {manualRepo ? "Use GitHub instead" : "Type a repo instead"}
-            </button>
+                ? "Every pool is linked to its repository through GitHub: reporters see who maintains it, and the AI reviews each report against the code. Next you'll publish the bounty rules."
+                : "Sign in to pick your repository from a list. Nothing to type or paste."}
           </span>
         </div>
         <label className="space-y-1">

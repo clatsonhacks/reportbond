@@ -3,7 +3,7 @@
 // Bounty rules for a pool: answer a few questions, let the setup agent draft the rulebook from the
 // repository, edit it, publish it, and get a SECURITY.md and README badge.
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, post } from "@/lib/api";
 import { formatUsdc } from "@/lib/format";
 import { SEVERITIES, type PoolRulesView, type Rulebook } from "@/lib/rules";
@@ -46,7 +46,7 @@ const cleaned = (r: Rulebook): Rulebook => ({
   slopSignals: tidy(r.slopSignals),
 });
 
-export function RulesEditor({ pool }: { pool: PoolView }) {
+export function RulesEditor({ pool, required = false }: { pool: PoolView; required?: boolean }) {
   const signIn = useSignIn();
   const qc = useQueryClient();
   const [view, setView] = useState<PoolRulesView | null>(null);
@@ -82,9 +82,10 @@ export function RulesEditor({ pool }: { pool: PoolView }) {
 
   const draft = () =>
     run("draft", async () => {
-      const res = await post<{ rules: Rulebook }>(`/api/pools/${pool.id}/rules/draft`, answers, await auth());
+      const res = await post<{ rules: Rulebook; sources?: string[] }>(`/api/pools/${pool.id}/rules/draft`, answers, await auth());
       setRules(res.rules);
-      setNotice("Draft written from your answers and the repository. Check every line: it's your policy, not the AI's.");
+      const found = res.sources?.length ? ` It used the policy already in the repository (${res.sources.join(", ")}).` : "";
+      setNotice(`Draft written from your answers and the repository.${found} Check every line: it's your policy, not the AI's.`);
     });
 
   const save = () =>
@@ -107,9 +108,17 @@ export function RulesEditor({ pool }: { pool: PoolView }) {
       setRules(null);
       setView((v) => (v ? { ...v, draft: null, published: { version: res.version, publishedAt: Date.now() / 1000, rules: final } } : v));
       qc.invalidateQueries({ queryKey: ["pool-rules", String(pool.id)] });
+      // The pool opens for reports the moment its first rules are published.
+      qc.invalidateQueries({ queryKey: ["pool", String(pool.id)] });
     });
 
   const set = <K extends keyof Rulebook>(key: K, value: Rulebook[K]) => setRules((r) => (r ? { ...r, [key]: value } : r));
+
+  // When rules are the step that opens the pool, go straight to the editor.
+  useEffect(() => {
+    if (required && !view && busy === null) void open();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the pool first needs rules
+  }, [required]);
 
   if (!view) {
     return (
@@ -135,7 +144,7 @@ export function RulesEditor({ pool }: { pool: PoolView }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Bounty rules</h2>
         <span className="text-sm text-ink-muted">
-          {view.published ? `Version ${view.published.version} is live` : "Not published yet"}
+          {view.published ? `Version ${view.published.version} is live` : required ? "Required before the pool opens" : "Not published yet"}
         </span>
       </div>
 
@@ -172,7 +181,7 @@ export function RulesEditor({ pool }: { pool: PoolView }) {
           <p className="text-sm text-ink-muted">
             {view.published
               ? "Edit the live rules, or have the AI redraft them from the repository."
-              : "Answer a few questions and the AI drafts the rules from your repository. You edit and approve everything before it's published."}
+              : "Answer a few questions and the AI drafts the rules from your repository. If the repository already has a rules file (RULES.md, BOUNTY.md or SECURITY.md), the draft starts from it. You edit and approve everything before it's published."}
           </p>
           {QUESTIONS.map((q) => (
             <label key={q.key} className="block space-y-1">

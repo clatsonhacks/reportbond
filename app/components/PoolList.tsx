@@ -87,6 +87,7 @@ export function PoolList({ creator, sort }: { creator?: string; sort?: PoolSort 
                   <VerifiedBadge login={p.verifiedBy} />
                 </div>
               )}
+              {!p.acceptingReports && <p className="mt-1 text-xs text-waiting">Setting up: rules not published yet</p>}
             </div>
             <span className="rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-ink-muted">
               Pool#{p.id}

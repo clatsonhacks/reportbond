@@ -49,7 +49,13 @@ export default function PoolPage() {
         </p>
 
         <div className="mt-6">
-          <ButtonLink href={`/pool/${pool.id}/report`}>Report with deposit</ButtonLink>
+          {pool.acceptingReports ? (
+            <ButtonLink href={`/pool/${pool.id}/report`}>Report with deposit</ButtonLink>
+          ) : (
+            <Notice tone="waiting">
+              This pool isn&apos;t taking reports yet: its maintainer hasn&apos;t published the bounty rules.
+            </Notice>
+          )}
         </div>
       </Card>
 

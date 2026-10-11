@@ -200,6 +200,7 @@ const FEE = process.env.FILING_FEE_USDC ? parseUnits(process.env.FILING_FEE_USDC
 
 const REPO_FILES: Record<string, string> = {
   "README.md": "# demo",
+  "RULES.md": "# Bounty rules\nIn scope: src/. Critical pays the full cap.",
   "src/app.c": "#include <string.h>\nvoid read_name(char *dst, const char *src) {\n  strcpy(dst, src);\n}\n",
 };
 const modelCalls: string[] = [];
@@ -494,6 +495,57 @@ async function main() {
   const unlink = await call("/api/github/link", { method: "DELETE", headers: reporterAuth });
   check("unlinking returns it to unknown", unlink.status === 200 && (await who(A))?.reporterMatch === "unknown");
 
+  console.log("Rules come first");
+  const closed = await call("/api/advisory/check", { json: { poolId: Number(poolId), url: advisoryUrl(A) }, cookie: session });
+  check("a pool without published rules takes no reports", closed.status === 409 && /rules/.test(String(closed.body.error)), closed.body);
+  const poolBefore = (await call(`/api/pools/${poolId}`)).body.pool as { acceptingReports: boolean; rulesVersion: number | null };
+  check("and says so to everyone", poolBefore?.acceptingReports === false && poolBefore?.rulesVersion === null, poolBefore);
+
+  console.log("Bounty rules");
+  const rulesUrl = `/api/pools/${poolId}/rules`;
+  const r0 = await call(rulesUrl);
+  check("no rules yet; the AI is configured", r0.body.published === null && r0.body.aiConfigured === true, r0.body);
+  check(
+    "drafting needs the pool creator",
+    (await call(`${rulesUrl}/draft`, { json: {} })).status === 401 &&
+      (await call(`${rulesUrl}/draft`, { json: {}, headers: await bearer(stranger) })).status === 403,
+  );
+  const drafted = await call(`${rulesUrl}/draft`, { json: { about: "A demo", focus: "memory safety" }, headers: auth });
+  const draftRules = drafted.body.rules as typeof CANNED_RULES;
+  check("the setup agent returns a draft", drafted.status === 200 && draftRules?.severity?.length === 4, drafted.body);
+  check("the draft starts from the rules file already in the repository", (drafted.body.sources as string[])?.includes("RULES.md"), drafted.body.sources);
+  check("the creator sees the saved draft", ((await call(rulesUrl, { headers: auth })).body.draft as { summary?: string })?.summary === CANNED_RULES.summary);
+  check("the public never sees a draft", !("draft" in (await call(rulesUrl)).body));
+  check("saving rules with missing fields is refused", (await call(rulesUrl, { method: "PUT", body: JSON.stringify({ rules: { summary: "x" } }), headers: auth })).status === 400);
+  const edited = { ...draftRules, summary: "Edited by the maintainer." };
+  check("the creator saves an edited draft", (await call(rulesUrl, { method: "PUT", body: JSON.stringify({ rules: edited }), headers: auth })).status === 200);
+  check("a stranger cannot publish", (await call(`${rulesUrl}/publish`, { json: {}, headers: await bearer(stranger) })).status === 403);
+  const pub = await call(`${rulesUrl}/publish`, { json: {}, headers: auth });
+  const md = String(pub.body.securityMd ?? "");
+  check(
+    "publish creates version 1 with a SECURITY.md",
+    pub.body.version === 1 && md.includes("Edited by the maintainer.") && md.includes(`/pool/${poolId}`) && md.includes("5.00 USDC"),
+    pub.body,
+  );
+  check(
+    "publish links to GitHub's editor on the default branch",
+    String(pub.body.commitUrl).startsWith(`https://github.com/${REPO}/new/main?filename=SECURITY.md`),
+    pub.body.commitUrl,
+  );
+  const r1 = await call(rulesUrl);
+  check("the published rules are public", (r1.body.published as { version: number })?.version === 1, r1.body);
+  const mdRes = await fetch(`${BASE}/api/pools/${poolId}/security-md`);
+  check(
+    "SECURITY.md is served as markdown",
+    mdRes.status === 200 && (mdRes.headers.get("content-type") ?? "").includes("markdown") && (await mdRes.text()).includes("# Security Policy"),
+  );
+  const badge = await fetch(`${BASE}/api/badge/${poolId}`);
+  const svg = await badge.text();
+  check("the badge is an SVG with the bounty and deposit", badge.status === 200 && svg.includes("<svg") && svg.includes("bug bounty") && svg.includes("deposit 5.00"), svg.slice(0, 120));
+
+  const poolAfter = (await call(`/api/pools/${poolId}`)).body.pool as { acceptingReports: boolean; rulesVersion: number | null };
+  check("publishing the rules opens the pool", poolAfter?.acceptingReports === true && poolAfter?.rulesVersion === 1, poolAfter);
+
   console.log("A reporter's own reports");
   const [D, E] = [ghsa(4), ghsa(5)];
   const listItem = (id: string, login: string, summary: string) => ({
@@ -569,47 +621,7 @@ async function main() {
   );
   check("past slop shows on the reporter's later reports", labels(dAfter).some((l) => l.startsWith("Flagged")), labels(dAfter));
 
-  console.log("Rules and AI review");
-  const rulesUrl = `/api/pools/${poolId}/rules`;
-  const r0 = await call(rulesUrl);
-  check("no rules yet; the AI is configured", r0.body.published === null && r0.body.aiConfigured === true, r0.body);
-  check(
-    "drafting needs the pool creator",
-    (await call(`${rulesUrl}/draft`, { json: {} })).status === 401 &&
-      (await call(`${rulesUrl}/draft`, { json: {}, headers: await bearer(stranger) })).status === 403,
-  );
-  const drafted = await call(`${rulesUrl}/draft`, { json: { about: "A demo", focus: "memory safety" }, headers: auth });
-  const draftRules = drafted.body.rules as typeof CANNED_RULES;
-  check("the setup agent returns a draft", drafted.status === 200 && draftRules?.severity?.length === 4, drafted.body);
-  check("the creator sees the saved draft", ((await call(rulesUrl, { headers: auth })).body.draft as { summary?: string })?.summary === CANNED_RULES.summary);
-  check("the public never sees a draft", !("draft" in (await call(rulesUrl)).body));
-  check("saving rules with missing fields is refused", (await call(rulesUrl, { method: "PUT", body: JSON.stringify({ rules: { summary: "x" } }), headers: auth })).status === 400);
-  const edited = { ...draftRules, summary: "Edited by the maintainer." };
-  check("the creator saves an edited draft", (await call(rulesUrl, { method: "PUT", body: JSON.stringify({ rules: edited }), headers: auth })).status === 200);
-  check("a stranger cannot publish", (await call(`${rulesUrl}/publish`, { json: {}, headers: await bearer(stranger) })).status === 403);
-  const pub = await call(`${rulesUrl}/publish`, { json: {}, headers: auth });
-  const md = String(pub.body.securityMd ?? "");
-  check(
-    "publish creates version 1 with a SECURITY.md",
-    pub.body.version === 1 && md.includes("Edited by the maintainer.") && md.includes(`/pool/${poolId}`) && md.includes("5.00 USDC"),
-    pub.body,
-  );
-  check(
-    "publish links to GitHub's editor on the default branch",
-    String(pub.body.commitUrl).startsWith(`https://github.com/${REPO}/new/main?filename=SECURITY.md`),
-    pub.body.commitUrl,
-  );
-  const r1 = await call(rulesUrl);
-  check("the published rules are public", (r1.body.published as { version: number })?.version === 1, r1.body);
-  const mdRes = await fetch(`${BASE}/api/pools/${poolId}/security-md`);
-  check(
-    "SECURITY.md is served as markdown",
-    mdRes.status === 200 && (mdRes.headers.get("content-type") ?? "").includes("markdown") && (await mdRes.text()).includes("# Security Policy"),
-  );
-  const badge = await fetch(`${BASE}/api/badge/${poolId}`);
-  const svg = await badge.text();
-  check("the badge is an SVG with the bounty and deposit", badge.status === 200 && svg.includes("<svg") && svg.includes("bug bounty") && svg.includes("deposit 5.00"), svg.slice(0, 120));
-
+  console.log("AI review");
   const triageUrl = (id: string) => `/api/github/reports/${id}/triage?pool=${poolId}`;
   check("AI review needs the pool creator", (await call(triageUrl(B), { json: {}, headers: await bearer(stranger) })).status === 403);
   check("AI review of an unknown report -> 404", (await call(triageUrl("GHSA-9999-9999-9999"), { json: {}, headers: auth })).status === 404);
@@ -645,6 +657,21 @@ async function main() {
     withTriage.find((x) => x.ghsa === B)?.triage !== null && withTriage.find((x) => x.ghsa === A)?.triage === null,
     withTriage.map((x) => [x.ghsa, Boolean(x.triage)]),
   );
+
+  console.log("Every paid report is reviewed");
+  // D was checked earlier but never paid for. Paying the deposit and saving its link is all a reporter
+  // does; the review then starts on its own.
+  const triagesBefore = modelCalls.filter((c) => c === "triage").length;
+  const rD = await deposit(D);
+  const linkD = await call(`/api/reports/${rD}/advisory`, { json: { url: advisoryUrl(D) } });
+  check("the reporter's link is saved after the deposit", linkD.status === 200, linkD.body);
+  let auto: { ghsa: string; triage: { recommendation: { verdict: string } | null; error?: string } | null } | undefined;
+  for (let i = 0; i < 60 && !auto?.triage; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    auto = ((await call(`/api/github/reports?pool=${poolId}`, { headers: auth })).body.reports as NonNullable<typeof auto>[]).find((r) => r.ghsa === D);
+  }
+  check("a report is reviewed by the AI as soon as its deposit is paid, with nobody asking", auto?.triage?.recommendation?.verdict === "valid", auto?.triage);
+  check("that review ran exactly once", modelCalls.filter((c) => c === "triage").length === triagesBefore + 1, modelCalls);
 
   const logout = await call("/api/github/logout", { json: {}, cookie: session });
   const s2 = await call("/api/github/session", { cookie: session });

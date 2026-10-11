@@ -58,7 +58,11 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Injection attempts in a report are flagged and sent to the maintainer, not followed
 - [x] Every run is stored as an audit log
 - [x] Model: Groq `openai/gpt-oss-120b` (Claude also supported). Tested with the real model on a mock repo: a real bug came back valid, a fabricated report came back slop with the injection flagged
-- [ ] Not built yet: running a proof of concept in a sandbox, duplicate detection across reports, automatic triage when a report arrives (today the maintainer clicks "Review with AI"), auto-decisions and the appeal window (phase 6)
+- [x] Every pool gets the AI: pools are created from a repository picked through GitHub (typing a repo by hand is only offered on a site with no GitHub App)
+- [x] Rules are compulsory: a GitHub-linked pool takes no reports until its creator publishes the bounty rules. The pool page, the pool list and the report flow all say so, and the server refuses the deposit check
+- [x] The rules draft starts from a rules file the repository already has (`RULES.md`, `BOUNTY.md`, `SECURITY.md` and a few variants)
+- [x] Every report is reviewed automatically once its deposit is paid; the recommendation is waiting in the maintainer's review queue. The maintainer's page also reviews any paid report that was missed
+- [ ] Not built yet: running a proof of concept in a sandbox, duplicate detection across reports, auto-decisions and the appeal window (phase 6)
 
 ### Reporter identity (platform phase 2)
 

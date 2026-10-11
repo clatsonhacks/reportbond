@@ -62,7 +62,10 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 - [x] Rules are compulsory: a GitHub-linked pool takes no reports until its creator publishes the bounty rules. The pool page, the pool list and the report flow all say so, and the server refuses the deposit check
 - [x] The rules draft starts from a rules file the repository already has (`RULES.md`, `BOUNTY.md`, `SECURITY.md` and a few variants)
 - [x] Every report is reviewed automatically once its deposit is paid; the recommendation is waiting in the maintainer's review queue. The maintainer's page also reviews any paid report that was missed
-- [ ] Not built yet: running a proof of concept in a sandbox, duplicate detection across reports, auto-decisions and the appeal window (phase 6)
+- [x] Automatic slop rejection. The pool creator sets a threshold when creating the pool (default 90%, minimum 50%, changeable later). When both AI reviewers agree a report is slop with at least that confidence, the server rejects it on-chain itself. This uses a helper contract, `VerdictDelegate`, as the pool's verdict signer: the maintainer's wallet can sign any verdict through it, and the server's key can sign Slop only, never Valid, so it can never pay out pool money. `ReportBond` itself is unchanged. Factory on Arc Testnet: `0xA251652711F349026b8E143D3072ef8913f3dDC0`
+- [x] The review queue is sorted by the AI's slop probability, most promising first, with a slider to hide reports above a chosen probability
+- [ ] Automatic rejection has no appeal window yet: a report the AI rejects loses its deposit at once. Pools created before this change have a plain wallet as signer, so there the AI only flags
+- [ ] Not built yet: running a proof of concept in a sandbox, duplicate detection across reports, an appeal window for automatic rejections
 
 ### Reporter identity (platform phase 2)
 
@@ -81,7 +84,7 @@ ReportBond works end to end on Arc Testnet. The contract, backend and frontend a
 
 | Layer | Status |
 |---|---|
-| 1. Contract tests | 44 passing, 100% coverage |
+| 1. Contract tests | 59 passing (44 for ReportBond, 15 for VerdictDelegate) |
 | 2. Local end-to-end (anvil) | Scenarios A–E pass, with both file and Postgres storage |
 | 3. Arc Testnet | Scenarios A–E pass on the current code, tagged `v0.1-testnet-passed`; transaction links are in the [README](README.md#arc-testnet) |
 | 4. Mainnet smoke test | Ready to run (`pnpm preflight`, then `pnpm e2e` with `NETWORK=mainnet`); needs wallets and real USDC |

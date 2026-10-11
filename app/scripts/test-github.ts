@@ -14,7 +14,8 @@ import { mnemonicToAccount } from "viem/accounts";
 import { advisoryHashOf, repoIdOf } from "../lib/advisory";
 import { encodeToken, signInMessage } from "../lib/auth";
 import { reportBond } from "../lib/contract";
-import { Verdict, verdictTypedData } from "../lib/eip712";
+import { delegateFactory } from "../lib/delegate";
+import { Status, Verdict, verdictTypedData } from "../lib/eip712";
 import { parseUsdc } from "../lib/format";
 import {
   authorizationTypedData,
@@ -108,8 +109,10 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
       ghsa_id: m[2],
       state: "triage",
       severity: "high",
-      summary: "Overflow in read_name()",
-      description: "read_name() in src/app.c:3 copies input without a length check. Reproduce with a 200 byte name.",
+      summary: slopReports.has(m[2]) ? "Critical RCE in everything" : "Overflow in read_name()",
+      description: slopReports.has(m[2])
+        ? `${SLOP_MARKER} The quantum_decrypt() function in src/missing.c allows remote code execution.`
+        : "read_name() in src/app.c:3 copies input without a length check. Reproduce with a 200 byte name.",
       cwe_ids: [],
       vulnerabilities: [],
     });
@@ -178,12 +181,15 @@ const mock = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     }
     const name = parsed.response_format?.json_schema?.name as string;
     modelCalls.push(name);
+    const slop = JSON.stringify(parsed.messages).includes(SLOP_MARKER);
     const answer =
       name === "rulebook"
         ? CANNED_RULES
         : name === "triage"
-          ? { verdict: "valid", confidence: 0.9, severity: "high", summary: "Unchecked copy in read_name.", evidence: [], inScope: true, injectionSuspected: false }
-          : { agrees: true, confidence: 0.85, issues: [], injectionSuspected: false };
+          ? slop
+            ? { verdict: "slop", confidence: 0.96, severity: "none", summary: "Cites code that does not exist.", evidence: [], inScope: false, injectionSuspected: false }
+            : { verdict: "valid", confidence: 0.9, severity: "high", summary: "Unchecked copy in read_name.", evidence: [], inScope: true, injectionSuspected: false }
+          : { agrees: true, confidence: slop ? 0.95 : 0.85, issues: [], injectionSuspected: false };
     return send(200, { model: "mock-model", choices: [{ finish_reason: "stop", message: { content: JSON.stringify(answer) } }] });
   }
   send(404, { message: `mock: no route ${req.method} ${url.pathname}` });
@@ -197,6 +203,9 @@ const settlements: { payer: string; to: string; value: string }[] = [];
 // Set FILING_FEE_USDC (with FILING_FEE_RECIPIENT and GATEWAY_API_URL pointing at this mock) on the
 // server and here to test the filing fee; without it the fee checks are skipped.
 const FEE = process.env.FILING_FEE_USDC ? parseUnits(process.env.FILING_FEE_USDC, 6).toString() : null;
+
+const SLOP_MARKER = "fabricated-report-marker";
+const slopReports = new Set<string>(); // advisories whose text the mock model calls slop
 
 const REPO_FILES: Record<string, string> = {
   "README.md": "# demo",
@@ -362,6 +371,65 @@ async function filingFeeChecks(checkD: (payment?: string) => ReturnType<typeof c
   check("the fee is charged once per report", again.status === 200 && (again.body.fee as { paid: boolean })?.paid === true && settlements.length === before + 1, again.body);
 }
 
+// The pool creator sets how sure the AI must be; above that, a slop report is rejected on-chain with
+// nobody signing. The AI's key can do nothing else.
+async function autoSlopChecks(t: { poolId: bigint; auth: Record<string, string>; deposit: (id: string) => Promise<bigint> }) {
+  console.log("Automatic slop rejection");
+  const url = `/api/pools/${t.poolId}/auto-slop`;
+  check("only the pool creator sets the threshold", (await call(url, { json: { threshold: 90 }, headers: await bearer(stranger) })).status === 403);
+  check("a threshold below 50% is refused", (await call(url, { json: { threshold: 49 }, headers: t.auth })).status === 400);
+  check("a threshold above 100% is refused", (await call(url, { json: { threshold: 101 }, headers: t.auth })).status === 400);
+
+  type PoolAuto = { autoSlop: { threshold: number; active: boolean } | null; signerOwner: string | null };
+  const pool = async () => (await call(`/api/pools/${t.poolId}`)).body.pool as PoolAuto;
+  const statusOf = async (id: bigint) => (await client.readContract({ ...reportBond, functionName: "reports", args: [id] }))[4];
+  const list = async () =>
+    ((await call(`/api/github/reports?pool=${t.poolId}`, { headers: t.auth })).body.reports ?? []) as {
+      ghsa: string;
+      triage: { recommendation: { verdict: string } | null; autoVerdict?: { score: number; threshold: number; tx: string } } | null;
+    }[];
+  // File a slop report the way a reporter would: on GitHub, then the deposit, then the link.
+  const fileSlop = async (n: number) => {
+    const id = ghsa(n);
+    slopReports.add(id);
+    listed.push({ ghsa_id: id, html_url: advisoryUrl(id), state: "triage", created_at: new Date().toISOString(), summary: "Critical RCE in everything", author: { login: "Researcher-1" } });
+    await list(); // the tracker picks it up from GitHub
+    const reportId = await t.deposit(id);
+    await call(`/api/reports/${reportId}/advisory`, { json: { url: advisoryUrl(id) } });
+    let seen: Awaited<ReturnType<typeof list>>[number] | undefined;
+    for (let i = 0; i < 60 && !seen?.triage; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      seen = (await list()).find((r) => r.ghsa === id);
+    }
+    return { id, reportId, seen };
+  };
+
+  // At 100% the reviewers' 95% isn't enough: reviewed and called slop, but left for the maintainer.
+  await call(url, { json: { threshold: 100 }, headers: t.auth });
+  const careful = await fileSlop(6);
+  check("below the threshold, a slop report is reviewed but not rejected", careful.seen?.triage?.recommendation?.verdict === "slop" && !careful.seen.triage.autoVerdict, careful.seen?.triage);
+  check("and stays open on-chain for the maintainer", (await statusOf(careful.reportId)) === Status.Submitted, await statusOf(careful.reportId));
+
+  const set = await call(url, { json: { threshold: 90 }, headers: t.auth });
+  const p = await pool();
+  check(
+    "the creator sets a 90% threshold on a pool whose signer is their delegate",
+    set.status === 200 && p.autoSlop?.threshold === 90 && p.autoSlop.active === true && p.signerOwner === maintainer.address.toLowerCase(),
+    [set.body, p],
+  );
+  const patchesBefore = patches.length;
+  const rejected = await fileSlop(7);
+  const auto = rejected.seen?.triage?.autoVerdict;
+  check("at or above the threshold, the AI rejects the report itself", auto?.score === 95 && auto.threshold === 90 && Boolean(auto.tx), rejected.seen?.triage);
+  if (auto?.tx) await client.waitForTransactionReceipt({ hash: auto.tx as Hex });
+  check("the report is Slop on-chain, with no signature from the maintainer", (await statusOf(rejected.reportId)) === Status.Slop, await statusOf(rejected.reportId));
+  const closedOnGithub = await waitForPatch(rejected.id);
+  check("and the advisory is closed on GitHub", closedOnGithub?.state === "closed" && patches.length > patchesBefore, closedOnGithub);
+
+  await call(url, { json: { threshold: null }, headers: t.auth });
+  check("the creator can turn it off", (await pool()).autoSlop === null);
+}
+
 async function main() {
   if (config.network !== "local") throw new Error("Run with NETWORK=local");
   await new Promise<void>((r) => mock.listen(MOCK_PORT, "127.0.0.1", r));
@@ -394,8 +462,16 @@ async function main() {
   );
 
   console.log("Verify pools");
+  // With the delegate factory deployed, the pool's verdict signer is the maintainer's delegate: every
+  // verdict the maintainer signs below goes through it, and the AI may sign Slop.
+  let signerAddress: Hex = maintainer.address;
+  if (delegateFactory) {
+    const created = await wallet(maintainer).writeContract({ ...delegateFactory, functionName: "create", args: [maintainer.address] });
+    await client.waitForTransactionReceipt({ hash: created });
+    signerAddress = await client.readContract({ ...delegateFactory, functionName: "delegateOf", args: [maintainer.address] });
+  }
   const mk = async (repo: string) => {
-    const r = await send(maintainer, "createPool", [repoIdOf(repo), maintainer.address, parseUsdc("5"), 300n, parseUsdc("3")], parseUsdc("10"));
+    const r = await send(maintainer, "createPool", [repoIdOf(repo), signerAddress, parseUsdc("5"), 300n, parseUsdc("3")], parseUsdc("10"));
     return parseEventLogs({ abi: reportBond.abi, eventName: "PoolCreated", logs: r.logs })[0].args.poolId;
   };
   const poolId = await mk(REPO);
@@ -672,6 +748,9 @@ async function main() {
   }
   check("a report is reviewed by the AI as soon as its deposit is paid, with nobody asking", auto?.triage?.recommendation?.verdict === "valid", auto?.triage);
   check("that review ran exactly once", modelCalls.filter((c) => c === "triage").length === triagesBefore + 1, modelCalls);
+
+  if (delegateFactory) await autoSlopChecks({ poolId, auth, deposit });
+  else console.log("Automatic slop rejection: skipped (no delegate factory; deploy with AUTO_SIGNER set)");
 
   const logout = await call("/api/github/logout", { json: {}, cookie: session });
   const s2 = await call("/api/github/session", { cookie: session });

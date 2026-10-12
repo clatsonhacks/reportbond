@@ -1,6 +1,6 @@
 // One place for model calls: ask for a JSON object matching a schema, and validate it before use.
 // Provider is chosen by which key is set:
-//   GROQ_API_KEY       -> Groq (OpenAI-compatible API), default model openai/gpt-oss-120b
+//   GROQ_API_KEY       -> Groq (OpenAI-compatible API), default model llama-3.3-70b-versatile
 //   ANTHROPIC_API_KEY  -> Claude, default model claude-opus-5-5
 // AI_PROVIDER=groq|anthropic forces one; AI_MODEL overrides the model.
 // GROQ_BASE_URL / ANTHROPIC_BASE_URL can point at a mock for tests.
@@ -24,7 +24,7 @@ export function aiProvider(): AiProvider | null {
 export const aiConfigured = () => aiProvider() !== null;
 
 export function aiModel(): string {
-  return process.env.AI_MODEL ?? (aiProvider() === "anthropic" ? "claude-opus-5-5" : "openai/gpt-oss-120b");
+  return process.env.AI_MODEL ?? (aiProvider() === "anthropic" ? "claude-opus-5-5" : "llama-3.3-70b-versatile");
 }
 
 /** A failure with a message a maintainer can read. */

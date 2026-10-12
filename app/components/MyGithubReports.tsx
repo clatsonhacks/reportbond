@@ -24,7 +24,7 @@ export function MyGithubReports({ pool, onPick, busy }: { pool: PoolView; onPick
     queryFn: () => api<Mine>(`/api/github/my-reports?pool=${pool.id}`),
     enabled: signedIn,
   });
-  const newReportUrl = pool.repoName ? `https://github.com/${pool.repoName}/security/advisories/report` : null;
+  const newReportUrl = pool.repoName ? `https://github.com/${pool.repoName}/security/advisories/new` : null;
 
   if (!signedIn) {
     return (

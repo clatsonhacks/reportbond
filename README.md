@@ -2,7 +2,7 @@
 
 **A trust-minimized bug bounty platform where security researchers stake refundable bonds to prove report quality.**
 
-Refundable USDC deposits for private security reports on GitHub, settled on Arc.
+Refundable USDC deposits for private security reports on GitHub, settled on Arc
 
 ---
 

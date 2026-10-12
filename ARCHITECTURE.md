@@ -152,7 +152,7 @@ DATABASE_URL=postgresql://neondb_owner:***@ep-nameless-credit-b364qk58-pooler.c-
 ┌─────────────┐
 │  REPORTER   │
 └──────┬──────┘
-       │
+       │ 
        │ 1. File vulnerability on GitHub (private advisory)
        │ 2. Copy advisory URL
        ▼

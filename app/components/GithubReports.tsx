@@ -231,7 +231,16 @@ export function GithubReports({
           ))}
         </ul>
       )}
-      {error && <Notice tone="slashed">{error}</Notice>}
+      {error && (
+        <div className="space-y-2">
+          <Notice tone="slashed">{error}</Notice>
+          {session.connected && pool.repoName && (
+            <Button variant="secondary" onClick={verify} disabled={busy}>
+              {busy ? "Re-verifying…" : "Re-verify with GitHub"}
+            </Button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

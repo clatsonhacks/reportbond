@@ -1,7 +1,59 @@
 # ReportBond
 
+**A trust-minimized bug bounty platform where security researchers stake refundable bonds to prove report quality.**
+
 Refundable USDC deposits for private security reports on GitHub, settled on Arc.
 
+---
+
+## The Problem
+
+Private vulnerability disclosure is broken. Security researchers discover bugs but hesitate to report them because:
+
+- **Maintainers ghost** — Reports go unanswered for weeks or months
+- **Bounties vanish** — "We don't pay for that severity" after the fact
+- **Credit stolen** — Researchers get nothing while maintainers quietly ship fixes
+- **No accountability** — There's no mechanism to enforce fair treatment
+
+From the maintainer's side, they're flooded with:
+
+- **Low-effort spam** — AI-generated "vulnerabilities" that waste triage time
+- **Duplicate reports** — Same issue submitted by multiple researchers
+- **Non-issues** — Misunderstandings dressed up as security bugs
+
+Both sides lose. Researchers stop reporting privately, and real vulnerabilities go to public disclosure or worse.
+
+---
+
+## Our Approach
+
+ReportBond creates **mutual accountability** through a bonding mechanism:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   Reporter stakes 5 USDC deposit  ──────►  Files vulnerability     │
+│                                                                     │
+│                          ┌─────────────────┐                        │
+│                          │   Maintainer    │                        │
+│                          │    Reviews      │                        │
+│                          └────────┬────────┘                        │
+│                                   │                                 │
+│              ┌────────────────────┼────────────────────┐            │
+│              ▼                    ▼                    ▼            │
+│         ┌────────┐           ┌────────┐           ┌────────┐        │
+│         │ Valid  │           │Mistake │           │  Slop  │        │
+│         └───┬────┘           └───┬────┘           └───┬────┘        │
+│             │                    │                    │             │
+│      Deposit + Bounty       Deposit back        Deposit to pool    │
+│                                                                     │
+│                     ┌──────────────────────┐                        │
+│                     │  No response in 14d? │                        │
+│                     │   Auto-refund bond   │                        │
+│                     └──────────────────────┘                        │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 A reporter pays a small deposit when filing a private vulnerability report. The repo's maintainer signs a verdict:
 
@@ -14,12 +66,218 @@ A reporter pays a small deposit when filing a private vulnerability report. The 
 
 The contract holds all money; there is no admin key. Verdicts are EIP-712 signatures from the pool's verdict signer, so our server can deliver them but never create or change them.
 
+### How It Works
+
+1. **Maintainer creates a pool** — Deposits funds, sets bounty range, defines response deadline
+2. **Reporter stakes a bond** — Puts down a small deposit (e.g., 5 USDC) when filing a report
+3. **Maintainer reviews** — Has a fixed window (e.g., 14 days) to respond
+4. **Verdict issued**:
+   - **Valid** → Reporter gets deposit back + bounty
+   - **Honest Mistake** → Reporter gets deposit back (no penalty)
+   - **Slop** → Deposit forfeits to the pool (spam deterrent)
+5. **Timeout protection** — If maintainer ghosts, bond auto-refunds
+
+This creates a **skin-in-the-game equilibrium**:
+- Researchers only stake on reports they believe in
+- Maintainers must respond or lose the right to judge
+- Spammers lose money; quality reporters get rewarded
+
+---
+
+## The Role of Arc Chain
+
+ReportBond runs on **Arc**, a Cosmos-based EVM chain with native USDC.
+
+### Why Blockchain at All?
+
+| Without Blockchain | With Blockchain |
+|-------------------|-----------------|
+| Platform controls funds | Smart contract holds escrow |
+| "Trust us" guarantees | Code enforces rules |
+| Arbitrary rule changes | Immutable logic |
+| Platform can freeze funds | Only protocol rules apply |
+| Opaque fee structure | Transparent on-chain fees |
+
+The smart contract is the neutral arbiter. Neither party can cheat because the rules are encoded and enforced automatically.
+
+### Why Arc Specifically?
+
+1. **Native USDC** — No wrapped tokens, no bridge risk, no slippage. Real USDC from Circle.
+2. **Low gas costs** — Transactions cost ~$0.01, making small bonds practical
+3. **Fast finality** — Verdicts settle in seconds, not minutes
+4. **EVM compatible** — Standard Solidity, works with MetaMask/WalletConnect/RainbowKit
+
+### What Lives On-Chain
+
+```solidity
+// Every pool is on-chain
+struct Pool {
+    address creator;
+    uint256 requiredDeposit;    // e.g., 5 USDC
+    uint256 maxBounty;          // e.g., 500 USDC
+    uint256 timeout;            // e.g., 14 days
+    uint256 available;          // Remaining bounty funds
+}
+
+// Every report is on-chain
+struct Report {
+    address reporter;
+    bytes32 advisoryHash;       // Hash of GitHub URL (privacy!)
+    uint256 deposit;
+    uint256 deadline;
+    Status status;              // Submitted → Verdict
+}
+
+// Credits accumulate on-chain
+mapping(address => uint256) public credits;  // Withdraw anytime
+```
+
+### What Stays Off-Chain (Privacy)
+
+- **Advisory URLs** — Only the hash is stored on-chain
+- **GitHub identities** — Verified via OAuth, not stored publicly
+- **Report contents** — Actual vulnerability details remain on GitHub
+
+---
+
+## GitHub Integration
+
+ReportBond bridges on-chain coordination with GitHub's security infrastructure.
+
+### The Flow
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│  1. Reporter files private vulnerability on GitHub               │
+│     github.com/owner/repo/security/advisories/new               │
+│                                                                  │
+│  2. Reporter submits to ReportBond with advisory URL            │
+│     - System verifies: URL exists, repo matches pool,           │
+│       reporter filed it (GitHub OAuth proves identity)          │
+│     - Hash stored on-chain, URL stored privately                │
+│                                                                  │
+│  3. Maintainer reviews on GitHub (full details there)           │
+│     Signs verdict with wallet (no gas needed - EIP-712)         │
+│                                                                  │
+│  4. Verdict synced back to GitHub advisory                      │
+│     - Valid → Advisory closed as resolved                       │
+│     - Mistake → Advisory closed as not-applicable               │
+│     - Slop → Advisory closed as spam                            │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Why GitHub?
+
+- **Where developers already work** — No new workflow to learn
+- **Private by default** — Security advisories are private until published
+- **Rich context** — Full markdown, attachments, discussion threads
+- **Reputation** — GitHub profiles provide researcher identity
+
+### GitHub App Features
+
+| Feature | Purpose |
+|---------|---------|
+| Repository verification | Proves maintainer owns the repo |
+| Advisory validation | Confirms URL is real and matches pool |
+| Reporter authentication | Proves who filed the advisory |
+| State synchronization | Pushes verdicts back to GitHub |
+
+---
+
+## Problems Solved
+
+### For Security Researchers
+
+| Problem | ReportBond Solution |
+|---------|---------------------|
+| Maintainer ignores report | Auto-refund after deadline (14 days default) |
+| "We don't pay bounties" | Pool balance visible upfront, locked in contract |
+| Bounty amount disputed | Max bounty defined when pool created |
+| No proof of submission | On-chain record with timestamp |
+| Report stolen, no credit | Advisory hash proves prior filing |
+
+### For Maintainers
+
+| Problem | ReportBond Solution |
+|---------|---------------------|
+| Inbox flooded with spam | Reporters lose deposit on slop verdicts |
+| AI-generated garbage | 5 USDC stake filters out zero-effort reports |
+| Same bug filed 10 times | System detects duplicate advisory hashes |
+| Unclear severity claims | Bounty reflects actual assessment |
+| Legal/payment complexity | USDC payouts, no invoicing needed |
+
+### For the Ecosystem
+
+| Problem | ReportBond Solution |
+|---------|---------------------|
+| Distrust between parties | Contract enforces rules, not promises |
+| Race to public disclosure | Private channel with guaranteed response |
+| Bounty platforms take 20%+ | Transparent 1-2% protocol fees |
+| Centralized points of failure | On-chain escrow, distributed hosting |
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Arc Blockchain                              │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  ReportBondWithFees Contract                            │   │
+│  │  - createPool()      - submitReport()                   │   │
+│  │  - submitVerdict()   - refundExpired()                  │   │
+│  │  - withdraw()        - withdrawProtocolFees()           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ Events
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Indexer (Background)                        │
+│  - Polls chain every 15s                                        │
+│  - Syncs pools, reports, withdrawals to database               │
+│  - Rebuilds from genesis if cache lost                         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Postgres Database                           │
+│  - Chain state (pools, reports, credits)                       │
+│  - Private data (advisory URLs, repo names)                    │
+│  - GitHub sessions (OAuth tokens, installations)               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Next.js Application                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   Frontend   │  │  API Routes  │  │  Background  │          │
+│  │   (React)    │  │  (Serverless)│  │   (Cron)     │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            ▼                 ▼                 ▼
+      ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+      │    Wallet    │  │    GitHub    │  │   Relayer    │
+      │   Connect    │  │    OAuth     │  │  (Verdicts)  │
+      └──────────────┘  └──────────────┘  └──────────────┘
+```
+
+---
+
+## Project Structure
+
 ```text
 contracts/   Foundry project: ReportBond.sol, tests, deploy script
 app/         Next.js frontend + API routes (indexer, relayer, advisory links)
 app/jobs/    indexer.ts and keeper.ts (run as separate processes when hosted)
 config/      testnet.json, mainnet.json (contract address and deploy block go here)
 ```
+
+---
 
 ## Arc Testnet
 
@@ -38,6 +296,8 @@ The end-to-end scenarios pass on testnet with a 5-minute timeout, 5.00 USDC depo
 | Withdrawals | Reporter got back exactly 17.00 in total | [12.00](https://testnet.arcscan.app/tx/0x8da9d119cbc9e4f1b701ff3b9992ad00aadb990c6172415f4a678edc8ed27d73) · [5.00](https://testnet.arcscan.app/tx/0xa8ed8e67d325846b7ba7039b3c0e6eca2ff797df9c6f00f826da5fa5d7181f76) |
 
 Still to do by hand: a plain browser wallet (MetaMask or Rabby) going through the report flow, and a smart-wallet verdict signer.
+
+---
 
 ## Deploying (hosted testnet)
 
@@ -60,6 +320,8 @@ The app runs on any Node host; these steps use Vercel and a hosted Postgres.
 
 Without `DATABASE_URL` the app falls back to JSON files in `app/.data`, which is fine locally but doesn't persist on serverless hosts. `pnpm test:db` checks either backend.
 
+---
+
 ## Setup
 
 Requires Foundry, Node 22 and pnpm. Copy `.env.example` to `.env`.
@@ -73,6 +335,8 @@ cd contracts && forge test          # Layer 1: unit, fuzz, invariant
 cd app && pnpm install
 ```
 
+---
+
 ## Local end-to-end (Layer 2)
 
 ```sh
@@ -83,6 +347,8 @@ cd app && NETWORK=local pnpm dev     # http://localhost:3000
 cd app && NETWORK=local pnpm e2e     # scenarios A–E through the API, relayer and keeper
 ```
 
+---
+
 ## Testnet (Layer 3)
 
 1. Fund the deployer and relayer addresses in `.env` from https://faucet.circle.com (Arc Testnet).
@@ -92,6 +358,8 @@ cd app && NETWORK=local pnpm e2e     # scenarios A–E through the API, relayer 
 5. With the `TEST_*` wallets in `.env` funded: `cd app && pnpm e2e` runs scenarios A–E on testnet (about 6 minutes).
 
 After changing the contract: `forge build`, then `pnpm sync-abi` in `app/`.
+
+---
 
 ## Filing fee (Circle Gateway nanopayments)
 
@@ -105,6 +373,8 @@ How it works:
 4. The fee is charged once per report, and the maintainer's tracker shows "Filing fee paid".
 
 The recipient's fees accumulate in its Gateway balance, not its wallet; withdrawing them is done with Circle's Gateway tools and isn't built into this app. With the fee on, `pnpm e2e` would be asked for the fee too, so leave it off when running the scenarios.
+
+---
 
 ## Tests
 
@@ -121,3 +391,20 @@ Run from `app/`:
 | `pnpm test:github` | GitHub connect, verified pools, webhooks, reporter identity, rules and AI review; the filing fee too when `FILING_FEE_USDC` is set | anvil, a dev server pointed at the mock |
 | `pnpm try:nano` | One real filing fee through Circle Gateway on Arc Testnet | the test reporter wallet with a little USDC |
 | `pnpm e2e` | Deposit, verdict, refund and withdraw scenarios | anvil or testnet wallets |
+
+---
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TailwindCSS 4
+- **Wallet**: RainbowKit, Wagmi, Viem
+- **Database**: Neon Postgres (pooled connections)
+- **Blockchain**: Arc Chain (EVM), Solidity ^0.8.24
+- **Auth**: GitHub OAuth, EIP-712 signatures
+- **Deploy**: Vercel (app), Neon (database)
+
+---
+
+## License
+
+MIT

@@ -29,16 +29,18 @@ export async function syncPoolAdvisories(poolId: string, force = false): Promise
 
   let list;
   try {
+    console.log(`[github] listing advisories for ${verified.repo} (installation ${verified.installationId})`);
     list = await listAdvisories(verified.installationId, verified.repo);
+    console.log(`[github] found ${list.length} advisories for ${verified.repo}`);
     unavailable.delete(verified.repo);
   } catch (e) {
     // 404 here means the repository has no security advisories feature: GitHub only offers private
     // vulnerability reporting on public repositories.
+    console.error(`[github] error listing advisories for ${verified.repo}:`, (e as Error).message, e instanceof GithubError ? `(status ${e.status})` : "");
     if (e instanceof GithubError && e.status === 404) {
       unavailable.add(verified.repo);
       return false;
     }
-    console.error(`[github] couldn't list advisories for ${verified.repo}:`, (e as Error).message);
     return true;
   }
   await updateGithub((d) => {

@@ -4,7 +4,7 @@
   "rpcUrl": "https://rpc.mainnet.arc.io",
   "rpcFallbackUrl": "https://rpc.blockdaemon.mainnet.arc.io",
   "explorerUrl": "https://explorer.arc.io",
-  "contractAddress": "0x0000000000000000000000000000000000000000",
-  "deployBlock": 0,
+  "contractAddress": "0x7281Be3731A85E20648188Ce7d2d6776BF8746E4",
+  "deployBlock": 25627878,
   "isTestnet": false
 }

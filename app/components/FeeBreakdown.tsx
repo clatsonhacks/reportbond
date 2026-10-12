@@ -10,6 +10,23 @@ const POOL_CREATION_FEE = parseUsdc("1"); // native USDC on Arc has 18 decimals
 const BOUNTY_FEE_BPS = 200; // 2%
 const BASIS_POINTS = 10_000;
 
+/** A single informational fee row, not a real charge: the contract doesn't collect fees yet. Never folded
+ * into a "total to pay" — this is reference only, for when the fee ships. */
+export function ProposedFeeLine({ depositAmount }: { depositAmount: bigint }) {
+  const fee = (depositAmount * BigInt(REPORT_FEE_BPS)) / BigInt(BASIS_POINTS);
+  return (
+    <p className="flex items-center justify-between gap-3 text-sm text-ink-muted opacity-70">
+      <span className="flex items-center gap-2">
+        Protocol fee (1%)
+        <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
+          Proposed — not charged
+        </span>
+      </span>
+      <Amount value={fee} className="font-mono line-through" />
+    </p>
+  );
+}
+
 export function ReportFeeBreakdown({ depositAmount }: { depositAmount: bigint }) {
   const fee = (depositAmount * BigInt(REPORT_FEE_BPS)) / BigInt(BASIS_POINTS);
   const total = depositAmount + fee;
@@ -118,7 +135,7 @@ export function ProtocolFeeExplainer() {
         <p className="text-xs">
           All fees are transparent and fixed in the smart contract. We don&apos;t take hidden fees or commissions.
         </p>
-        <div className="rounded-xl bg-surface p-3 mt-2">
+        <div className="rounded-2xl bg-surface p-3 mt-2">
           <div className="text-xs font-semibold mb-1">Fee Breakdown:</div>
           <div className="grid gap-1 text-xs">
             <div>• Report submission: 1% of deposit</div>

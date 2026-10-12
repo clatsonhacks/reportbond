@@ -35,7 +35,7 @@ export function GithubSignInButton({ label = "Sign in with GitHub", next }: { la
   return (
     <a
       href={configured ? connectHref("signin", next) : "/setup/github"}
-      className="state-change inline-flex items-center gap-3 rounded-xl border border-line bg-card px-5 py-3 text-base font-medium text-ink shadow-sm hover:border-accent hover:shadow-md"
+      className="state-change inline-flex items-center gap-3 rounded-2xl border border-line bg-card px-5 py-3 text-base font-medium text-ink shadow-sm hover:border-accent hover:shadow-md"
     >
       <GithubMark />
       {label}

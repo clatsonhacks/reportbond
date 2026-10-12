@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(netstat -ano)",
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs -I{} taskkill //F //PID {})",
+      "Bash(pnpm lint *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

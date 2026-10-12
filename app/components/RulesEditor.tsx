@@ -8,8 +8,19 @@ import { api, post } from "@/lib/api";
 import { formatUsdc } from "@/lib/format";
 import { SEVERITIES, type PoolRulesView, type Rulebook } from "@/lib/rules";
 import type { PoolView } from "@/lib/types";
+import { useElapsedSinceMount } from "@/lib/useElapsed";
 import { useSignIn } from "@/lib/useSignIn";
-import { Button, buttonStyles, Card, Notice } from "./ui";
+import { Button, buttonStyles, Card, Notice, Spinner } from "./ui";
+
+/** Live proof the AI is still reading the repository, not stuck: a spinner plus a running clock. */
+function BusyNote({ children }: { children: React.ReactNode }) {
+  const elapsed = useElapsedSinceMount();
+  return (
+    <p className="flex items-center gap-2 text-sm text-ink-muted">
+      <Spinner className="h-3.5 w-3.5" /> {children} ({elapsed}s elapsed)
+    </p>
+  );
+}
 
 const BLANK: Rulebook = {
   summary: "",
@@ -34,7 +45,7 @@ const QUESTIONS = [
 
 type Published = { version: number; securityMd: string; commitUrl: string | null };
 
-const field = "w-full rounded-[8px] border border-line bg-surface px-3 py-2 text-sm";
+const field = "w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm";
 const lines = (xs: string[]) => xs.join("\n");
 const tidy = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean);
 /** Drop the blank lines left over from editing lists in a textarea. */
@@ -163,7 +174,7 @@ export function RulesEditor({ pool, required = false }: { pool: PoolView; requir
               Copy SECURITY.md
             </Button>
           </div>
-          <details className="rounded-[8px] border border-line bg-surface p-3">
+          <details className="rounded-2xl border border-line bg-surface p-3">
             <summary className="cursor-pointer text-sm font-medium">Preview SECURITY.md</summary>
             <pre className="num mt-3 max-h-96 overflow-auto whitespace-pre-wrap text-xs">{published.securityMd}</pre>
           </details>
@@ -171,7 +182,7 @@ export function RulesEditor({ pool, required = false }: { pool: PoolView; requir
             <p className="text-sm font-medium">README badge</p>
             {/* eslint-disable-next-line @next/next/no-img-element -- a live SVG served by our own API */}
             <img src={`/api/badge/${pool.id}`} alt="Bug bounty badge" height={20} />
-            <pre className="num overflow-x-auto rounded-[8px] border border-line bg-surface p-2 text-xs">{badge}</pre>
+            <pre className="num overflow-x-auto rounded-2xl border border-line bg-surface p-2 text-xs">{badge}</pre>
           </div>
         </div>
       )}
@@ -207,6 +218,7 @@ export function RulesEditor({ pool, required = false }: { pool: PoolView; requir
               {view.published ? "Edit the live rules" : "Write them by hand"}
             </Button>
           </div>
+          {busy === "draft" && <BusyNote>Reading the repository and drafting rules with AI</BusyNote>}
         </div>
       ) : (
         <div className="space-y-4">
@@ -265,6 +277,7 @@ export function RulesEditor({ pool, required = false }: { pool: PoolView; requir
               Close
             </Button>
           </div>
+          {busy === "publish" && <BusyNote>Publishing and committing to the repository</BusyNote>}
           <p className="text-xs text-ink-muted">
             Publishing makes these the rules for new reports. Reports already filed keep the version they were filed under.
           </p>

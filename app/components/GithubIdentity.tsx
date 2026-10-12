@@ -63,7 +63,7 @@ export function GithubIdentity() {
   }
 
   return (
-    <div className="space-y-3 rounded-[8px] border border-line bg-surface p-4 text-sm">
+    <div className="space-y-3 rounded-2xl border border-line bg-surface p-4 text-sm">
       {linked ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2">

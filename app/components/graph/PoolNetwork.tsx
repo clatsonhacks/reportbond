@@ -10,6 +10,7 @@ import { Status } from "@/lib/eip712";
 import { formatUsdc } from "@/lib/format";
 import type { PoolView, ReportView } from "@/lib/types";
 import { Empty, Loading, Notice } from "../ui";
+import { StatusNode } from "./StatusNode";
 
 const CELL_W = 300;
 const CELL_H = 250;
@@ -29,29 +30,12 @@ const statusName: Record<number, string> = {
 };
 
 function ReportNode({ r, x, y, mine }: { r: ReportView; x: number; y: number; mine: boolean }) {
-  const shape =
-    r.status === Status.Valid ? (
-      <circle r={NODE_R} className="fill-valid" />
-    ) : r.status === Status.Mistake ? (
-      <circle r={NODE_R} className="fill-mistake" />
-    ) : r.status === Status.Slop ? (
-      <circle r={NODE_R} className="fill-slop" />
-    ) : r.status === Status.Refunded ? (
-      <circle r={NODE_R - 1} className="fill-card stroke-refunded" strokeWidth={2} strokeDasharray="3 2" />
-    ) : r.status === Status.Acknowledged ? (
-      <>
-        <circle r={NODE_R - 1} className="fill-card stroke-acknowledged" strokeWidth={2} />
-        <circle r={3} className="fill-acknowledged" />
-      </>
-    ) : (
-      <circle r={NODE_R - 1} className="fill-card stroke-waiting" strokeWidth={2} />
-    );
   return (
     <Link href={`/report/${r.id}`}>
       <g transform={`translate(${x} ${y})`}>
         <title>{`Report #${r.id}: ${statusName[r.status] ?? "unknown"}`}</title>
         {mine && <circle r={NODE_R + 4} className="fill-none stroke-brand" strokeWidth={1.5} strokeDasharray="3 2" />}
-        {shape}
+        <StatusNode status={r.status} r={NODE_R} />
       </g>
     </Link>
   );

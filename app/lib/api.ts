@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { PoolView, ReportView, StatusView } from "./types";
+import type { PoolView, ReportView, StatusView, TimelineEntryView } from "./types";
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -60,6 +60,16 @@ export function useReports(params: Record<string, string | undefined>, enabled =
     queryFn: () => api<{ reports: ReportView[] }>(`/api/reports?${q}`),
     enabled,
     refetchInterval: 30_000, // Reduced from 15s to 30s
+    staleTime: 20 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+export function useWithdrawals(account?: string) {
+  return useQuery({
+    queryKey: ["withdrawals", account?.toLowerCase() ?? null],
+    queryFn: () => api<{ withdrawals: TimelineEntryView[] }>(`/api/withdrawals?account=${account}`),
+    enabled: Boolean(account),
     staleTime: 20 * 1000,
     gcTime: 5 * 60 * 1000,
   });

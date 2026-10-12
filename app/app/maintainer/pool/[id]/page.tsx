@@ -64,7 +64,7 @@ export default function MaintainerPool() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-[1600px]">
           <Link href="/maintainer" className="text-sm text-ink-muted hover:text-ink">
             ← Maintainer console
           </Link>
@@ -72,7 +72,7 @@ export default function MaintainerPool() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 sm:px-12 py-8 space-y-6">
+      <div className="mx-auto max-w-[1600px] px-6 sm:px-12 py-8 space-y-6">
       {needsRules ? (
         <Notice tone="waiting">
           <strong>{created ? "Pool created. One step left: publish the bounty rules." : "Publish the bounty rules to open this pool."}</strong>{" "}
@@ -284,7 +284,7 @@ function ReviewItem({
 
   const left = r.deadline - now;
   return (
-    <li className="rounded-[8px] border border-line bg-card p-4">
+    <li className="rounded-2xl border border-line bg-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1 text-sm">
         <Link href={`/report/${r.id}`} className="num font-medium hover:underline">
           #{r.id}
@@ -342,7 +342,7 @@ function ReviewItem({
             <label className="block space-y-1">
               <span className="text-sm font-medium">Bounty (USDC)</span>
               <input
-                className="num w-40 rounded-[8px] border border-line bg-surface px-3 py-2 text-sm"
+                className="num w-40 rounded-2xl border border-line bg-surface px-3 py-2 text-sm"
                 inputMode="decimal"
                 value={bounty}
                 onChange={(e) => setBounty(e.target.value)}
@@ -353,7 +353,7 @@ function ReviewItem({
           )}
 
           {choice !== null && (
-            <div className="space-y-3 rounded-[8px] border border-line bg-surface p-3">
+            <div className="space-y-3 rounded-2xl border border-line bg-surface p-3">
               <p className="text-sm">{consequence} This can&apos;t be undone.</p>
               <div className="flex gap-2">
                 <Button onClick={confirm} disabled={tx.busy || Boolean(bountyErr)} variant={choice === Verdict.Slop ? "danger" : "primary"}>
@@ -411,7 +411,7 @@ function PoolMoney({ pool, isCreator, onDone }: { pool: PoolView; isCreator: boo
     }
   }
 
-  const field = "num w-36 rounded-[8px] border border-line bg-surface px-3 py-2 text-sm";
+  const field = "num w-36 rounded-2xl border border-line bg-surface px-3 py-2 text-sm";
   return (
     <Card className="space-y-4">
       <h2 className="font-semibold">Pool money</h2>

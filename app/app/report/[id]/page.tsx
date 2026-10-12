@@ -1,9 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { ProposedFeeLine } from "@/components/FeeBreakdown";
+import { DeadlineRing } from "@/components/graph/DeadlineRing";
+import { OutcomeTree } from "@/components/graph/OutcomeTree";
 import { StatusPill } from "@/components/StatusPill";
 import { TxStatus } from "@/components/TxStatus";
 import { Amount, Button, Card, ExplorerLink, Loading, Notice } from "@/components/ui";
@@ -68,93 +71,123 @@ export default function ReportStatus() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto max-w-[1600px] flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-black tracking-tight">
+            <Breadcrumbs items={[{ label: r.repoName ?? `Pool #${r.poolId}`, href: `/pool/${r.poolId}` }, { label: `Report #${r.id}` }]} />
+            <h1 className="mt-2 text-3xl font-black tracking-tight">
               Report <span className="num">#{r.id}</span>
             </h1>
-            <Link href={`/pool/${r.poolId}`} className="text-ink-muted hover:text-ink">
-              {r.repoName ?? `Pool #${r.poolId}`}
-            </Link>
           </div>
           <StatusPill status={r.status} />
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 sm:px-12 py-8 space-y-6">
-      <Card>
-
-        <ol className="mt-6 space-y-0 border-y border-line">
-          <TimelineStep
-            done
-            title="Submitted"
-            time={submitted?.time}
-            detail={
-              <>
-                <Amount value={r.deposit} /> deposited
-              </>
-            }
-            tx={submitted?.tx}
-          />
-          {(acked || open) && (
-            <TimelineStep done={Boolean(acked)} title="Acknowledged" time={acked?.time} tx={acked?.tx} optional={!acked} />
-          )}
-          <TimelineStep
-            done={Boolean(final)}
-            title={r.status === Status.Refunded ? "Refunded" : "Verdict"}
-            time={final?.time}
-            tx={final?.tx}
-            detail={
-              final ? undefined : left > 0 ? (
-                <>
-                  due by {formatDate(r.deadline)} ({formatDuration(left)} left)
-                </>
-              ) : (
-                <span className="text-waiting">deadline passed {formatDate(r.deadline)}</span>
-              )
-            }
-          />
-        </ol>
-
-        <div className="mt-5 space-y-3">
-          {verdictLine[r.status] && <Notice tone={r.status === Status.Slop ? "slashed" : "returned"}>{verdictLine[r.status](r)}</Notice>}
-          {r.status === Status.Refunded && (
-            <Notice tone="returned">
-              No verdict before the deadline, so the <Amount value={r.deposit} /> deposit was credited back to the reporter.
-            </Notice>
-          )}
-          {open && (
-            <>
-              <p className="text-sm text-ink-muted">
-                If there&apos;s no verdict by the deadline, anyone can return the deposit, even if our server is down.
-              </p>
-              {due ? (
-                <WalletGate>
-                  <Button onClick={triggerRefund} disabled={refund.busy}>
-                    Trigger refund
-                  </Button>
-                </WalletGate>
-              ) : (
-                <Button disabled title="Available once the deadline passes">
-                  Trigger refund
-                </Button>
+      <div className="mx-auto max-w-[1600px] px-6 sm:px-12 py-8">
+      <div className="flex flex-wrap items-start gap-6">
+        {/* Main column */}
+        <div className="flex-[999_1_560px] space-y-6">
+          <Card>
+            <ol className="mt-6 space-y-0 border-y border-line">
+              <TimelineStep
+                done
+                title="Submitted"
+                time={submitted?.time}
+                detail={
+                  <>
+                    <Amount value={r.deposit} /> deposited
+                  </>
+                }
+                tx={submitted?.tx}
+              />
+              {(acked || open) && (
+                <TimelineStep done={Boolean(acked)} title="Acknowledged" time={acked?.time} tx={acked?.tx} optional={!acked} />
               )}
-              <TxStatus state={refund.state} />
-            </>
+              <TimelineStep
+                done={Boolean(final)}
+                title={r.status === Status.Refunded ? "Refunded" : "Verdict"}
+                time={final?.time}
+                tx={final?.tx}
+                detail={
+                  final ? undefined : left > 0 ? (
+                    <>
+                      due by {formatDate(r.deadline)} ({formatDuration(left)} left)
+                    </>
+                  ) : (
+                    <span className="text-waiting">deadline passed {formatDate(r.deadline)}</span>
+                  )
+                }
+              />
+            </ol>
+
+            <div className="mt-5 space-y-3">
+              {verdictLine[r.status] && <Notice tone={r.status === Status.Slop ? "slashed" : "returned"}>{verdictLine[r.status](r)}</Notice>}
+              {r.status === Status.Refunded && (
+                <Notice tone="returned">
+                  No verdict before the deadline, so the <Amount value={r.deposit} /> deposit was credited back to the reporter.
+                </Notice>
+              )}
+              {open && (
+                <>
+                  <p className="text-sm text-ink-muted">
+                    If there&apos;s no verdict by the deadline, anyone can return the deposit, even if our server is down.
+                  </p>
+                  {due ? (
+                    <WalletGate>
+                      <Button onClick={triggerRefund} disabled={refund.busy}>
+                        Trigger refund
+                      </Button>
+                    </WalletGate>
+                  ) : (
+                    <Button disabled title="Available once the deadline passes">
+                      Trigger refund
+                    </Button>
+                  )}
+                  <TxStatus state={refund.state} />
+                </>
+              )}
+            </div>
+          </Card>
+
+          {pool && (
+            <Card className="space-y-3 slide-up">
+              <h2 className="font-semibold">Outcome tree</h2>
+              <OutcomeTree status={r.status} deposit={BigInt(r.deposit)} maxPayout={BigInt(pool.maxPayout)} />
+            </Card>
           )}
         </div>
-      </Card>
 
-      {address?.toLowerCase() === r.reporter && (
-        <div className="slide-up">
-          <WithdrawCard />
+        {/* Aside */}
+        <div className="flex-1 min-w-[300px] space-y-6">
+          <Card className="flex flex-col items-center gap-2 slide-up">
+            <h2 className="self-start font-semibold">Response deadline</h2>
+            <DeadlineRing createdAt={submitted?.time ?? r.createdAt} deadline={r.deadline} status={r.status} />
+          </Card>
+
+          <Card className="space-y-2 slide-up">
+            <h2 className="font-semibold">Bond</h2>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-ink-muted">Deposit</span>
+              <Amount value={r.deposit} className="font-semibold" />
+            </div>
+            <ProposedFeeLine depositAmount={BigInt(r.deposit)} />
+            <div className="flex items-center justify-between border-t border-line pt-2 text-sm font-semibold">
+              <span>Paid</span>
+              <Amount value={r.deposit} />
+            </div>
+          </Card>
+
+          {address?.toLowerCase() === r.reporter && (
+            <div className="slide-up">
+              <WithdrawCard />
+            </div>
+          )}
+          {isParty && r.hasAdvisoryLink && (
+            <div className="slide-up">
+              <AdvisoryLink reportId={r.id} />
+            </div>
+          )}
         </div>
-      )}
-      {isParty && r.hasAdvisoryLink && (
-        <div className="slide-up">
-          <AdvisoryLink reportId={r.id} />
-        </div>
-      )}
+      </div>
       </div>
     </div>
   );

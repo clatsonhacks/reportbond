@@ -74,7 +74,7 @@ export function MyGithubReports({ pool, onPick, busy }: { pool: PoolView; onPick
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-line rounded-[8px] border border-line">
+          <ul className="divide-y divide-line rounded-2xl border border-line">
             {data.reports.map((r) => (
               <li key={r.ghsa} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
                 <div className="min-w-0 space-y-0.5">

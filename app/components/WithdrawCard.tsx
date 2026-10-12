@@ -8,7 +8,7 @@ import { TxStatus } from "./TxStatus";
 import { Amount, Button, Card } from "./ui";
 
 /** Shows the connected wallet's credited balance and a Withdraw button. Hidden when nothing is owed. */
-export function WithdrawCard() {
+export function WithdrawCard({ onWithdrawn }: { onWithdrawn?: () => void } = {}) {
   const { address } = useAccount();
   const credits = useReadContract({
     ...reportBond,
@@ -24,7 +24,10 @@ export function WithdrawCard() {
 
   async function withdraw() {
     const hash = await tx.run(() => writeContractAsync({ ...reportBond, functionName: "withdraw" }));
-    if (hash) credits.refetch();
+    if (hash) {
+      credits.refetch();
+      onWithdrawn?.();
+    }
   }
 
   return (

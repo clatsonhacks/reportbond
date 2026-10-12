@@ -16,6 +16,7 @@
   --brand-light: #818cf8;
   --brand-glow: #0ea5e9;
   --brand-bg: #eef2ff;
+  --brand-text: #4338ca;
   --accent: #4f46e5;
   --accent-ink: #ffffff;
 
@@ -89,6 +90,7 @@
     --brand-light: #a5b4fc;
     --brand-glow: #38bdf8;
     --brand-bg: #1e1b4b;
+    --brand-text: #a5b4fc;
     --accent: #818cf8;
     --accent-ink: #0f0f12;
 
@@ -161,6 +163,7 @@
   --color-brand-light: var(--brand-light);
   --color-brand-glow: var(--brand-glow);
   --color-brand-bg: var(--brand-bg);
+  --color-brand-text: var(--brand-text);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
 
@@ -205,7 +208,6 @@
   /* Typography */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-face), ui-monospace, monospace;
-  --radius-card: 8px;
 }
 
 html {
@@ -578,6 +580,15 @@ body {
   stroke-width: 1px;
   stroke-dasharray: 8 4;
   fill: none;
+}
+
+/* The constellation's deadline ring: violet, since crossing it means the deposit becomes refundable. */
+.constellation-ring {
+  stroke: var(--refunded);
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 4;
+  fill: none;
+  opacity: 0.6;
 }
 
 /* Keeper band (violet zone beyond deadline) */

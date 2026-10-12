@@ -8,12 +8,32 @@ import { api, post } from "@/lib/api";
 import { connectHref, useGithubSession, type TrackedReportView } from "@/lib/github";
 import { formatDate } from "@/lib/format";
 import type { PoolView } from "@/lib/types";
+import { useElapsedSinceMount } from "@/lib/useElapsed";
 import { savedSignInToken, useSignIn } from "@/lib/useSignIn";
 import type { TriageRun } from "@/lib/rules";
 import { StatusPill } from "./StatusPill";
 import { TriageResult } from "./TriageResult";
-import { Button, buttonStyles, Card, Empty, Notice } from "./ui";
+import { Button, buttonStyles, Card, Empty, Notice, Spinner } from "./ui";
 import { VerifiedBadge } from "./VerifiedBadge";
+
+/** Live proof the AI review is still running, not stuck: a spinner plus a running clock. */
+function ReviewingNote() {
+  const elapsed = useElapsedSinceMount();
+  return (
+    <p className="flex items-center gap-2 text-ink-muted">
+      <Spinner className="h-3.5 w-3.5" /> Checking the report against the repository… this can take up to a minute ({elapsed}s elapsed).
+    </p>
+  );
+}
+
+/** The 20s-interval background check (waiting to see if the server already started a review) is otherwise invisible. */
+function WaitingForServerNote({ waits }: { waits: number }) {
+  return (
+    <p className="flex items-center gap-2 text-xs text-ink-muted">
+      <Spinner className="h-3 w-3" /> Checking whether the server already started a review (attempt {waits + 1} of 5)…
+    </p>
+  );
+}
 
 const tagTone = {
   good: "bg-returned-bg text-returned",
@@ -177,7 +197,7 @@ export function GithubReports({
       ) : reports.length === 0 ? (
         <Empty>No private reports filed on GitHub yet.</Empty>
       ) : (
-        <ul className="divide-y divide-line rounded-[8px] border border-line">
+        <ul className="divide-y divide-line rounded-2xl border border-line">
           {reports.map((r) => (
             <li key={r.ghsa} className="space-y-3 px-4 py-3 text-sm">
              <div className="flex flex-wrap items-center justify-between gap-3">
@@ -223,9 +243,8 @@ export function GithubReports({
                 </Button>
               </div>
              </div>
-              {reviewing === r.ghsa && (
-                <p className="text-ink-muted">Checking the report against the repository. This takes up to a minute.</p>
-              )}
+              {reviewing === r.ghsa && <ReviewingNote />}
+              {pending?.ghsa === r.ghsa && reviewing !== r.ghsa && !attempted.has(r.ghsa) && <WaitingForServerNote waits={waits} />}
               {r.triage && reviewing !== r.ghsa && <TriageResult run={r.triage} />}
             </li>
           ))}

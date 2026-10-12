@@ -1,14 +1,16 @@
 "use client";
 
 // Three steps, one decision each: paste the link → review → pay (docs/DESIGN.md).
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { parseEventLogs, type Hex } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { FilingFee } from "@/components/FilingFee";
+import { ProposedFeeLine } from "@/components/FeeBreakdown";
 import { GithubIdentity } from "@/components/GithubIdentity";
 import { MyGithubReports } from "@/components/MyGithubReports";
+import { OutcomeTable } from "@/components/OutcomeTable";
 import type { MyReportView } from "@/lib/github";
 import type { FeeView, PaymentRequired } from "@/lib/nano";
 import { TxStatus } from "@/components/TxStatus";
@@ -16,7 +18,7 @@ import { Amount, Button, ButtonLink, Card, Loading, Notice } from "@/components/
 import { WalletGate } from "@/components/WalletGate";
 import { post, usePool } from "@/lib/api";
 import { reportBond } from "@/lib/contract";
-import { formatUsdc } from "@/lib/format";
+import { formatDuration, formatUsdc } from "@/lib/format";
 import { useTx } from "@/lib/useTx";
 
 type Checked = { repo: string; ghsa: string; url: string; advisoryHash: Hex; fee?: FeeView };
@@ -111,10 +113,14 @@ export default function ReportFlow() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-7xl">
-          <Link href={`/pool/${pool.id}`} className="text-sm text-ink-muted hover:text-ink">
-            ← {pool.repoName ?? `Pool #${pool.id}`}
-          </Link>
+        <div className="mx-auto max-w-[1600px]">
+          <Breadcrumbs
+            items={[
+              { label: "Pools", href: "/" },
+              { label: pool.repoName ?? `Pool #${pool.id}`, href: `/pool/${pool.id}` },
+              { label: "Submit report" },
+            ]}
+          />
           <h1 className="mt-2 text-3xl font-black tracking-tight">Report with deposit</h1>
           <ol className="mt-3 flex gap-4 text-sm" aria-label="Steps">
             {[pool.verifiedBy ? "Your report" : "Advisory link", "Review", "Pay"].map((s, i) => (
@@ -170,7 +176,7 @@ export default function ReportFlow() {
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="https://github.com/…/security/advisories/GHSA-…"
-              className="num w-full rounded-[8px] border border-line bg-surface px-3 py-2.5 text-sm"
+              className="num w-full rounded-2xl border border-line bg-surface px-3 py-2.5 text-sm"
               autoComplete="off"
               spellCheck={false}
               required
@@ -193,20 +199,23 @@ export default function ReportFlow() {
             </p>
             {checked.fee?.paid && <p className="mt-1 text-sm text-returned">Filing fee paid</p>}
           </div>
-          <p className="text-lg leading-relaxed">
-            You&apos;ll deposit <Amount value={deposit} />. You get it back if your report is valid or an honest mistake,
-            or if the maintainer doesn&apos;t answer by {deadline}. You lose it only if the report is judged low-effort
-            or fabricated.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-ink-muted">
+              You&apos;ll deposit <Amount value={deposit} />. The maintainer has until {deadline} to answer.
+            </p>
+            <ProposedFeeLine depositAmount={deposit} />
+            <OutcomeTable deposit={deposit} maxPayout={BigInt(pool.maxPayout)} timeoutLabel={formatDuration(pool.timeout)} />
+          </div>
           {pool.autoSlop?.active && (
             <p className="text-sm text-ink-muted">
               This pool reviews reports with AI first: one rated at least {pool.autoSlop.threshold}% likely to be slop
               by both AI reviewers is rejected automatically.
             </p>
           )}
-          {BigInt(pool.available) > 0n && (
-            <p className="text-sm text-ink-muted">
-              A valid report can also earn a bounty of up to <Amount value={pool.maxPayout} />.
+          {BigInt(pool.available) === 0n && (
+            <p className="text-sm text-waiting">
+              This pool has no funds for a bounty right now: a valid report still gets its deposit back, but not the
+              bounty shown above.
             </p>
           )}
           <WalletGate need={deposit}>

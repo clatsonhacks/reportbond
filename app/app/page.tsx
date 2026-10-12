@@ -25,7 +25,7 @@ export default function Home() {
     <div>
       {/* Hero Section - Full width */}
       <section className="geometric-bg relative px-6 py-10 sm:px-12 sm:py-14 fade-in">
-        <div className="relative z-10 mx-auto max-w-7xl">
+        <div className="relative z-10 mx-auto max-w-[1600px]">
           <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
             {/* Left: Text */}
             <div className="max-w-lg space-y-4">
@@ -110,7 +110,7 @@ export default function Home() {
             {steps.map((step) => (
               <div
                 key={step.number}
-                className="rounded-xl border border-line bg-card p-4"
+                className="rounded-2xl border border-line bg-card p-4"
               >
                 <div className="mb-2 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
@@ -126,7 +126,7 @@ export default function Home() {
       </section>
 
       {/* Pool Network Graph */}
-      <section className="mx-auto max-w-7xl px-6 sm:px-12 py-10 space-y-4 slide-up">
+      <section className="mx-auto max-w-[1600px] px-6 sm:px-12 py-10 space-y-4 slide-up">
         <div>
           <h2 className="text-xl font-black tracking-tight">Pool network</h2>
           <p className="text-sm text-ink-muted">
@@ -177,7 +177,7 @@ export default function Home() {
       </section>
 
       {/* Open Pools */}
-      <section id="pools" className="mx-auto max-w-7xl px-6 sm:px-12 pb-16 space-y-4 scroll-mt-8 slide-up">
+      <section id="pools" className="mx-auto max-w-[1600px] px-6 sm:px-12 pb-16 space-y-4 scroll-mt-8 slide-up">
         <OpenPools />
 
         {/* Legend */}

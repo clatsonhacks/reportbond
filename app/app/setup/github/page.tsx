@@ -63,13 +63,13 @@ function SetupGithub() {
 
   if (status.isLoading) return <Loading />;
   const s = status.data;
-  const field = "w-full rounded-[8px] border border-line bg-surface px-3 py-2 text-sm";
+  const field = "w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm";
 
   return (
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-[1600px]">
           <h1 className="text-3xl font-black tracking-tight">Set up the GitHub App</h1>
           <p className="mt-1 text-ink-muted">
             A one-time step for whoever runs this ReportBond site. After this, maintainers just click Connect GitHub.
@@ -136,7 +136,7 @@ function SetupGithub() {
               </label>
             )}
 
-            <div className="rounded-[8px] border border-line bg-surface p-3 text-sm text-ink-muted">
+            <div className="rounded-2xl border border-line bg-surface p-3 text-sm text-ink-muted">
               <p className="font-medium text-ink">The app will ask repositories for:</p>
               <ul className="mt-1 list-disc space-y-0.5 pl-5">
                 <li>Security advisories: read and write (track private reports; accept or close them)</li>

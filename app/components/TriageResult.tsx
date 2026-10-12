@@ -35,7 +35,7 @@ function Refs({ title, items }: { title: string; items: GroundingItem[] }) {
 
 export function TriageResult({ run }: { run: TriageRun }) {
   if (run.error) {
-    return <p className="rounded-[8px] border border-line bg-surface p-3 text-sm text-slashed">AI review failed: {run.error}</p>;
+    return <p className="rounded-2xl border border-line bg-surface p-3 text-sm text-slashed">AI review failed: {run.error}</p>;
   }
   const rec = run.recommendation;
   const g = run.grounding;
@@ -44,7 +44,7 @@ export function TriageResult({ run }: { run: TriageRun }) {
   const found = checked.filter((i) => i.status === "found").length;
 
   return (
-    <div className="space-y-3 rounded-[8px] border border-line bg-surface p-3 text-sm">
+    <div className="space-y-3 rounded-2xl border border-line bg-surface p-3 text-sm">
       {rec && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">AI recommends</span>

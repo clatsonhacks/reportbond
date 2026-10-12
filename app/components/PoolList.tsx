@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePools, useStatus } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
-import { Amount, Empty, Loading, Notice } from "./ui";
+import { TrackRecordBar } from "./TrackRecordBar";
+import { Amount, Empty, Notice, PoolCardSkeleton } from "./ui";
 import { VerifiedBadge } from "./VerifiedBadge";
-import type { Outcomes, PoolView } from "@/lib/types";
+import type { PoolView } from "@/lib/types";
 
 export type PoolSort = "bounty" | "response" | "bond";
 
@@ -18,45 +19,6 @@ const sorters: Record<PoolSort, (a: PoolView, b: PoolView) => number> = {
   bond: (a, b) => compare(BigInt(a.depositAmount), BigInt(b.depositAmount)),
 };
 
-function TrackRecordBar({ record }: { record: Outcomes }) {
-  const total = record.valid + record.mistake + record.slop + record.refunded;
-  if (total === 0) return <span className="text-xs text-ink-muted">No history</span>;
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-1.5 w-20 overflow-hidden rounded-full bg-surface">
-        {record.valid > 0 && (
-          <div
-            className="bg-valid"
-            style={{ width: `${(record.valid / total) * 100}%` }}
-          />
-        )}
-        {record.mistake > 0 && (
-          <div
-            className="bg-mistake"
-            style={{ width: `${(record.mistake / total) * 100}%` }}
-          />
-        )}
-        {record.slop > 0 && (
-          <div
-            className="bg-slop"
-            style={{ width: `${(record.slop / total) * 100}%` }}
-          />
-        )}
-        {record.refunded > 0 && (
-          <div
-            className="bg-refunded"
-            style={{ width: `${(record.refunded / total) * 100}%` }}
-          />
-        )}
-      </div>
-      <span className="text-xs text-ink-muted">
-        {record.valid} of {total} resolved were valid
-      </span>
-    </div>
-  );
-}
-
 export function PoolList({ creator, sort }: { creator?: string; sort?: PoolSort }) {
   const status = useStatus();
   const { data, isLoading, error } = usePools(creator);
@@ -64,7 +26,14 @@ export function PoolList({ creator, sort }: { creator?: string; sort?: PoolSort 
   if (status.data && !status.data.deployed) {
     return <Notice tone="waiting">The contract is not deployed on {status.data.network} yet.</Notice>;
   }
-  if (isLoading) return <Loading />;
+  if (isLoading)
+    return (
+      <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2">
+        {[0, 1, 2].map((i) => (
+          <PoolCardSkeleton key={i} />
+        ))}
+      </div>
+    );
   if (error) return <Notice tone="slashed">Could not load pools: {error.message}</Notice>;
   if (!data?.pools.length) return <Empty>{creator ? "You have not opened a pool yet." : "No pools yet."}</Empty>;
 

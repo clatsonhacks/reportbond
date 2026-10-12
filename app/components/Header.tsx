@@ -19,7 +19,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 sm:px-12 py-3">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 sm:px-12 py-3">
         <div className="flex items-center gap-6">
           <Link href="/" className="group flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink text-card">
@@ -38,7 +38,7 @@ export function Header() {
                   href={href}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium state-change ${
                     isActive
-                      ? "bg-surface text-ink"
+                      ? "bg-brand-bg text-brand-text"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >

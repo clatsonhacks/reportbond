@@ -101,6 +101,41 @@ export function Empty({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** An animating spinner: proof of life for operations that take a while, not just a static "busy" label. */
+export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+      <path className="opacity-90" d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Loading() {
-  return <p className="text-ink-muted" aria-live="polite">Loading…</p>;
+  return (
+    <p className="flex items-center gap-2 text-ink-muted" aria-live="polite">
+      <Spinner /> Loading…
+    </p>
+  );
+}
+
+/** A placeholder shaped like a pool card, shown while the real list loads so the layout doesn't pop in. */
+export function PoolCardSkeleton() {
+  return (
+    <div aria-hidden className="pulse-slow min-w-56 shrink-0 rounded-2xl border border-line bg-card p-4">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="h-4 w-24 rounded bg-surface" />
+        <div className="h-4 w-12 rounded bg-surface" />
+      </div>
+      <div className="mb-4 space-y-2">
+        <div className="h-3 w-16 rounded bg-surface" />
+        <div className="h-7 w-24 rounded bg-surface" />
+      </div>
+      <div className="grid grid-cols-3 gap-2 border-t border-line pt-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-8 rounded bg-surface" />
+        ))}
+      </div>
+    </div>
+  );
 }

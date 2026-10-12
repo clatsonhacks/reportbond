@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
+import { FetchIndicator } from "@/components/FetchIndicator";
 import { Header } from "@/components/Header";
 import { TestnetBanner } from "@/components/TestnetBanner";
 
@@ -19,10 +20,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body className={`${inter.variable} ${mono.variable} font-sans antialiased`}>
         <Providers>
+          <FetchIndicator />
           <TestnetBanner />
           <Header />
           <main className="w-full">{children}</main>
-          <footer className="mx-auto max-w-7xl px-6 sm:px-12 pb-16 pt-8">
+          <footer className="mx-auto max-w-[1600px] px-6 sm:px-12 pb-16 pt-8">
             <div className="rounded-2xl border border-line bg-card p-6 text-center">
               <div className="mb-4 flex justify-center">
                 <svg className="h-12 w-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

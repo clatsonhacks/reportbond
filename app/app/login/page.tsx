@@ -24,7 +24,7 @@ export default function LoginPage() {
 
 function Step({ n, done, title, children }: { n: number; done: boolean; title: string; children: React.ReactNode }) {
   return (
-    <li className="flex gap-4 rounded-[8px] border border-line bg-card p-4">
+    <li className="flex gap-4 rounded-2xl border border-line bg-card p-4">
       <span
         aria-hidden
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
@@ -107,7 +107,7 @@ function Login() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-[1600px]">
           <h1 className="text-3xl font-black tracking-tight">Sign in</h1>
           <p className="mt-1 text-ink-muted">Your GitHub account says who you are. Your wallet is where deposits and bounties move.</p>
         </div>

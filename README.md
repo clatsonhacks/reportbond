@@ -8,7 +8,7 @@ Refundable USDC deposits for private security reports on GitHub, settled on Arc.
 
 ## The Problem
 
-Private vulnerability disclosure is broken. Security researchers discover bugs but hesitate to report them because:
+Private vulnerability disclosure is broken. Security researchers discover bugs but hesitate to report them  because:
 
 - **Maintainers ghost** — Reports go unanswered for weeks or months
 - **Bounties vanish** — "We don't pay for that severity" after the fact

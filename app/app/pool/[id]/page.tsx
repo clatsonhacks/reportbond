@@ -30,7 +30,7 @@ export default function PoolPage() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-[1600px]">
+        <div className="relative z-10 mx-auto max-w-[1600px]">
           <Breadcrumbs items={[{ label: "Pools", href: "/" }, { label: pool.repoName ?? `Pool #${pool.id}` }]} />
           <h1 className="mt-2 text-3xl font-black tracking-tight">{pool.repoName ?? `Pool #${pool.id}`}</h1>
           <div className="mt-2">

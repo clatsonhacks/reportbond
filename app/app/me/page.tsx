@@ -43,7 +43,7 @@ export default function MyReports() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-[1600px] flex flex-wrap items-end justify-between gap-3">
+        <div className="relative z-10 mx-auto max-w-[1600px] flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-3xl font-black tracking-tight">My reports</h1>
             <p className="mt-1 text-ink-muted">

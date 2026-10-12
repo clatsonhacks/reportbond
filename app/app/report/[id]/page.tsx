@@ -71,7 +71,7 @@ export default function ReportStatus() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-[1600px] flex flex-wrap items-center justify-between gap-3">
+        <div className="relative z-10 mx-auto max-w-[1600px] flex flex-wrap items-center justify-between gap-3">
           <div>
             <Breadcrumbs items={[{ label: r.repoName ?? `Pool #${r.poolId}`, href: `/pool/${r.poolId}` }, { label: `Report #${r.id}` }]} />
             <h1 className="mt-2 text-3xl font-black tracking-tight">

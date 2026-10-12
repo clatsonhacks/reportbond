@@ -113,7 +113,7 @@ export default function ReportFlow() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-[1600px]">
+        <div className="relative z-10 mx-auto max-w-[1600px]">
           <Breadcrumbs
             items={[
               { label: "Pools", href: "/" },

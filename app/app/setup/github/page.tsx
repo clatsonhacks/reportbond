@@ -69,7 +69,7 @@ function SetupGithub() {
     <div className="fade-in">
       {/* Header */}
       <div className="geometric-bg px-6 sm:px-12 py-8">
-        <div className="mx-auto max-w-[1600px]">
+        <div className="relative z-10 mx-auto max-w-[1600px]">
           <h1 className="text-3xl font-black tracking-tight">Set up the GitHub App</h1>
           <p className="mt-1 text-ink-muted">
             A one-time step for whoever runs this ReportBond site. After this, maintainers just click Connect GitHub.

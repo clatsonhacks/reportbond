@@ -72,12 +72,15 @@ async function main() {
     } catch {}
     check(`git tag ${TAG} exists`, tagged, tagged ? undefined : `tag the commit that passed testnet: git tag ${TAG} <commit>`);
     if (tagged) {
+      // Scoped to what Deploy.s.sol actually puts on mainnet, not the whole directory: a new file added
+      // since the tag (e.g. a contract still waiting on its own testnet certification) must not silently
+      // block deploying the one contract that already has one, and must not silently pass either.
       let same = false;
       try {
-        execSync(`git diff --quiet ${TAG} HEAD -- ../contracts/src`, { stdio: "ignore" });
+        execSync(`git diff --quiet ${TAG} HEAD -- ../contracts/src/ReportBond.sol`, { stdio: "ignore" });
         same = true;
       } catch {}
-      check("contract source unchanged since that tag", same);
+      check("ReportBond.sol unchanged since that tag", same);
     }
   }
 

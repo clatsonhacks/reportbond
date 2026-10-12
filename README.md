@@ -403,7 +403,7 @@ Run from `app/`:
 - **Auth**: GitHub OAuth, EIP-712 signatures
 - **Deploy**: Vercel (app), Neon (database)
 
----
+--
 
 ## License
 

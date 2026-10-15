@@ -14,3 +14,6 @@ docs/
 .vercel
 
 .vercel
+
+# Never commit installers or binaries
+*.exe

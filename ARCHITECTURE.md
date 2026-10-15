@@ -84,7 +84,7 @@
 ### 3. Database Setup ✅ CONFIGURED
 
 ```
-DATABASE_URL=postgresql://neondb_owner:***@ep-nameless-credit-b364qk58-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb
+DATABASE_URL=postgresql://user:password@host/dbname
 ```
 - Neon Postgres (pooled connection)
 - Serverless compatible
@@ -379,7 +379,7 @@ withdrawProtocolFees()  // Protocol owner only
 │                                                                 │
 │  Environment Variables:                                         │
 │  - NETWORK=testnet                                             │
-│  - DATABASE_URL=postgresql://...neon.tech/neondb              │
+│  - DATABASE_URL=postgresql://user:password@host/dbname              │
 │  - RELAYER_PRIVATE_KEY=0x...                                   │
 │  - CRON_SECRET=...                                             │
 └───────────────────────────────┬─────────────────────────────────┘

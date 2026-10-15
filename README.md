@@ -6,6 +6,31 @@ Refundable USDC deposits for private security reports on GitHub, settled on Arc.
 
 ---
 
+## Live on Arc mainnet
+
+ReportBond runs on **Arc mainnet** with real USDC.
+
+| | |
+|---|---|
+| App | **https://reportbond-nine.vercel.app** |
+| Contract | [`0x7281Be3731A85E20648188Ce7d2d6776BF8746E4`](https://explorer.arc.io/address/0x7281Be3731A85E20648188Ce7d2d6776BF8746E4) |
+| Network | Arc mainnet, chain ID `5042`, deployed at block `25627878` |
+
+Every outcome has already happened on mainnet:
+
+| Report | Outcome | Transactions |
+|---|---|---|
+| Pool 1 created | Funded for bounties, 0.50 USDC deposit per report | [create](https://explorer.arc.io/tx/0xa8b160392ec9003aff8e07573f90ef6995e2a8fa0f7f2effae6665101b41d7f5) |
+| #2 | **Valid**: deposit back plus a 0.20 USDC bounty | [deposit](https://explorer.arc.io/tx/0x02b18db2364f59cd196b5c9d82ac615891ee530e307d59de28ea5b1513048dce) · [verdict](https://explorer.arc.io/tx/0x15c3e2d2905daa26956cf967a8c2fb763dd97410ce35ab1a5b3817d6b5cf536c) |
+| #3 | **Honest mistake**: deposit back | [deposit](https://explorer.arc.io/tx/0x6e74a39f410522db5fe1cd2b615300d974102d9fc480b4e1b358727bdaa72493) · [verdict](https://explorer.arc.io/tx/0xd45d1a72bc38e15ae50f483536366bc3a1d7213db8c7a1eab03d71e09e131b90) |
+| #5 | **Slop**: deposit kept by the pool | [deposit](https://explorer.arc.io/tx/0xf0aff1861ce78bbab69f7e344b632f847e976ba11d4f640be41131c1873f920f) · [verdict](https://explorer.arc.io/tx/0xce79c726d550a05751b872e62b939aff9e337a1801815476837aa94f15416c76) |
+| #1 | **No answer in time**: deposit refunded automatically | [deposit](https://explorer.arc.io/tx/0xe067b11361530927c645cbb417db3acb02666d63192f5123c86ae7b6b1956c0a) · [refund](https://explorer.arc.io/tx/0xd6728d01be3cd460e0b9c5ca403ec2a4d77a2fdff84da4d7dd378d663081cf97) |
+| #6 | **Honest mistake** on a GitHub-verified pool, filed through the app with a 0.001 USDC deposit | [deposit](https://explorer.arc.io/tx/0x809cabe349fe5db9ec72a20a848f1bbdddead1b0ada15bcbc2e73050f27c1618) · [verdict](https://explorer.arc.io/tx/0x400900316e6856755d9334791530fb1a828b24869205178333176bb1db165100) |
+
+The [testnet deployment](#arc-testnet) is still available for trying things without real money. Automatic slop rejection needs the `VerdictDelegateFactory` contract, which is deployed on testnet only so far; on mainnet the AI reviews and flags reports, and the maintainer decides.
+
+---
+
 ## The Problem
 
 Private vulnerability disclosure is broken. Security researchers discover bugs but hesitate to report them  because:
